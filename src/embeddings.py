@@ -55,3 +55,27 @@ def load_all(
             vocab = vocab & this_vocab
 
     return res, list(vocab)
+
+def convert_words_to_embedding_matrix(words, embs):
+    '''
+    Converts a list of words to an embedding matrix.
+
+    Args:
+        words: a list of words of length N.
+        embs: an embedding dictionary (see `load`) of dimension D.
+
+    Returns: an [N, D] ndarray containing embeddings.
+
+    Raises an exception if some embedding is not found.
+    '''
+
+    n = len(words)
+    d = len(next(iter(embs.values())))
+    res = np.zeros((n, d))
+    for i, word in enumerate(words):
+        try:
+            res[i] = embs[word]
+            assert(np.linalg.norm(res[i]) > 0)
+        except:
+            raise ValueError("no embedding for '%s'" % word)
+    return res
