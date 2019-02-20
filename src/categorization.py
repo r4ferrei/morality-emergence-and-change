@@ -166,3 +166,23 @@ def train_model(dataset, lr=.001, batch_size=32, threshold=1e-6, patience=10):
         min_loss = min(min_loss, avg_loss)
 
     return model
+
+def accuracy(model, dataset):
+    '''
+    Computes model classification accuracy over the given dataset.
+
+    Args:
+        model: an instance of `ExemplarModel`.
+        dataset: a dataset like that from `build_loo_classification_dataset`.
+
+    Returns: a single floating-point accuracy value.
+    '''
+
+    num_correct = 0
+    num_total   = 0
+    for instance in dataset:
+        lik = model(instance['probe'], instance['emb_mats'])
+        _, pred = torch.max(lik, dim=0)
+        num_correct += bool((pred == instance['class']).detach())
+        num_total += 1
+    return num_correct / num_total
