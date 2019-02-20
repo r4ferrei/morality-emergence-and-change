@@ -97,3 +97,61 @@ def filter_by_vocab(seeds, vocab):
         else:
             assert(False)
     return res
+
+def split_pos_neg(seeds):
+    '''
+    Given seeds from `load`, returns tuple with two lists of words:
+    positive polarity seed words, and negative polarity seed words.
+    '''
+
+    pos = []
+    neg = []
+
+    plus = '+'
+    minus = '-'
+
+    assert(plus in NON_NEUTRAL_POLARITY_NAMES)
+    assert(minus in NON_NEUTRAL_POLARITY_NAMES)
+
+    for cat in MFT_CATEGORY_NAMES:
+        for word in seeds[plus][cat]:
+            pos.append(word)
+        for word in seeds[minus][cat]:
+            neg.append(word)
+
+    return pos, neg
+
+def split_neutral_moral(seeds):
+    '''
+    Given seeds from `load`, returns tuple with two lists of words:
+    neutral seed words, and non-neutral (pos/neg polarity) seed words.
+    '''
+
+    neutral = []
+    moral = []
+
+    for word in seeds[NEUTRAL_POLARITY_NAME]:
+        neutral.append(word)
+
+    for pol in NON_NEUTRAL_POLARITY_NAMES:
+        for cat in MFT_CATEGORY_NAMES:
+            for word in seeds[pol][cat]:
+                moral.append(word)
+
+    return neutral, moral
+
+def split_10_categories(seeds):
+    '''
+    Given seeds from `load`, produces a list of 10 lists, each being a word
+    list from a polarity-category MFT pair.
+
+    Returns: a tuple `labels, cats`, where `labels` is a list of label names
+    for identification of the categories, and `cats` is a list of 10 word
+    lists.
+    '''
+
+    words = {} # keys are concatention of multi-level keys, e.g. '0', '+care'
+    for pol in NON_NEUTRAL_POLARITY_NAMES:
+        for cat in MFT_CATEGORY_NAMES:
+            words[pol+cat] = seeds[pol][cat].copy()
+    return list(words.keys()), list(words.values())
