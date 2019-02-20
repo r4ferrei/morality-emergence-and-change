@@ -1,4 +1,5 @@
 import os
+import copy
 import pandas as pd
 
 # Assumed to correspond to order of category IDs in files, i.e. first
@@ -51,4 +52,48 @@ def load(
 
         res[pol][cat].append(word)
 
+    return res
+
+def seed_counts(seeds):
+    '''
+    Helper function that takes the seed words loaded by `load` and returns
+    a dictionary where the lists of words are replaced by their lengths.
+    '''
+
+    res = copy.deepcopy(seeds)
+    for k, v in res.items():
+        if isinstance(v, list):
+            res[k] = len(v)
+        elif isinstance(v, dict):
+            for k2, v2 in v.items():
+                assert(isinstance(v2, list))
+                res[k][k2] = len(v2)
+        else:
+            assert(False)
+    return res
+
+def filter_by_vocab(seeds, vocab):
+    '''
+    Filters a seed word structure to those present in the vocabulary.
+
+    Args:
+        seeds: seed words structure as produced by `load`.
+        vocab: list of words in the vocabulary.
+
+    Returns: similar structure to `seeds` where each word list is intersected
+    with `vocab`.
+    '''
+
+    vocab = set(vocab)
+
+    res = copy.deepcopy(seeds)
+    for k, v in res.items():
+        if isinstance(v, list):
+            res[k] = list(set(v) & vocab)
+        elif isinstance(v, dict):
+            for k2, v2 in v.items():
+                assert(isinstance(v2, list))
+                res[k][k2] = list(set(v2) & vocab)
+        else:
+            assert(False)
     return res
