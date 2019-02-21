@@ -270,6 +270,7 @@ def centroid_loo_accuracy(emb_mats):
 
     dataset = build_loo_classification_dataset(emb_mats)
     num_correct = 0
+    per_class = {}
     for instance in dataset:
         centroids = [torch.mean(embs, dim=0) for embs in instance['emb_mats']]
         centroids = torch.stack(centroids)
@@ -277,5 +278,16 @@ def centroid_loo_accuracy(emb_mats):
         dists = F.pairwise_distance(probe_repeated, centroids)
         assert(len(dists.shape) == 1)
         pred = torch.argmin(dists)
-        num_correct += bool((pred == instance['class']).detach())
+        is_correct = bool((pred == instance['class']).detach())
+        num_correct += is_correct
+
+        if instance['class'] not in per_class:
+            per_class[instance['class']] = []
+        per_class[instance['class']].append(is_correct)
+
+    for k in per_class:
+        per_class[k] = sum(per_class[k]) / len(per_class[k])
+    #print("Per-class accuracy:")
+    #print(per_class)
+
     return num_correct / len(dataset)
