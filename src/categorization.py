@@ -59,11 +59,12 @@ class ExemplarModel(nn.Module):
         width: a single number representing the kernel width.
 
     Input:
-        - [D] tensor embedding of probe word;
-        - list of [N_i, D] embedding matrices for each class, i = 1, ..., C.
+        - [B, D] tensor embedding of probe word (B is the batch size);
+        - [B, C] list of [N_i, D] embedding matrices where C is the number
+            of classes and N_i is the size of the i-th class.
 
     Output:
-        - [C] tensor of unnormalized class likelihoods.
+        - [B, C] tensor of unnormalized class likelihoods.
     '''
 
     def __init__(self, metric='l2'):
@@ -77,23 +78,61 @@ class ExemplarModel(nn.Module):
                 torch.tensor([1.], dtype=torch.float64, device=DEVICE))
         self.metric = metric
 
-    def forward(self, probe, emb_mats):
-        output = []
-        for emb_mat in emb_mats:
-            probe_repeated = probe.repeat(len(emb_mat), 1)
-            if self.metric == 'l2':
-                dists = F.pairwise_distance(probe_repeated, emb_mat)
-            elif self.metric == 'cosine':
-                dists = (1 - F.cosine_similarity(probe_repeated, emb_mat)) / 2
-            else:
-                raise ValueError("unknown distance metric '{}'".format(
-                    self.metric))
+    def probe_to_mat_dist(self, probe, emb_mat):
+        '''
+        Computes the distances between the probe and all embeddings.
 
-            activation = torch.exp(-dists / self.kernel_width)
-            activation = activation.mean()
-            output.append(activation)
+        Args:
+            probe: [B, D] tensor.
+            emb_mat: [B, N, D] tensor.
 
-        return torch.stack(output)
+        Returns: [B, N] tensor.
+        '''
+
+        b, n, d = emb_mat.shape
+        assert((b, d) == probe.shape)
+
+        probe_repeated = probe.unsqueeze(dim=1).repeat(1, n, 1)
+        assert((b, n, d) == probe_repeated.shape)
+
+        if self.metric == 'l2':
+            A = probe_repeated.reshape(b*n, d)
+            B = emb_mat.reshape(b*n, d)
+            dists = F.pairwise_distance(A, B)
+            dists = dists.reshape(b, n)
+        elif self.metric == 'cosine':
+            dists = (1 - F.cosine_similarity(
+                probe_repeated, emb_mat, dim=2)) / 2
+        else:
+            raise ValueError("unknown distance metric '{}'".format(self.metric))
+
+        assert((b, n) == dists.shape)
+        return dists
+
+    def forward(self, probes, emb_mats):
+        # For each instance in batch, list of number of examples per class.
+        class_sizes = [
+                [E.shape[0] for E in embs]
+                for embs in emb_mats
+                ]
+
+        emb_mats = [torch.cat(embs) for embs in emb_mats] # [B] of [N, D]
+        emb_mats = torch.stack(emb_mats) # [B, N, D]
+
+        b, _, d = emb_mats.shape
+        assert((b, d) == probes.shape)
+
+        dists = self.probe_to_mat_dist(probes, emb_mats)
+        acts  = torch.exp(-dists / self.kernel_width)
+
+        results = []
+        for i in range(b):
+            # [C] list of [N_i] tensors.
+            per_class = torch.split(acts[i], class_sizes[i])
+            activations = [A.mean() for A in per_class]
+            results.append(torch.stack(activations))
+
+        return torch.stack(results)
 
 def batch_nll_loss(model, batch):
     '''
@@ -106,16 +145,28 @@ def batch_nll_loss(model, batch):
     Returns: a single tensor with the average NLL loss over the batch.
     '''
 
-    losses = []
+    probes = []
+    emb_mats = []
     for instance in batch:
-        lik = model(instance['probe'], instance['emb_mats'])
-        class_lik = lik[instance['class']]
-        total_lik = lik.sum()
-        nll = -(torch.log(class_lik) - torch.log(total_lik))
-        losses.append(nll)
-    return torch.stack(losses).mean()
+        probes.append(instance['probe'])
+        emb_mats.append(instance['emb_mats'])
+    probes = torch.stack(probes)
 
-def train_model(dataset, lr=.001, batch_size=32, threshold=1e-6, patience=10):
+    unnorm_loglik = model(probes, emb_mats)
+    b, c = unnorm_loglik.shape
+
+    total_loglik = torch.sum(unnorm_loglik, dim=1)
+    assert((b,) == total_loglik.shape)
+
+    class_loglik = torch.stack(
+            [unnorm_loglik[i, inst['class']] for i, inst in enumerate(batch)])
+    assert((b,) == class_loglik.shape)
+
+    nlls = -(torch.log(class_loglik) - torch.log(total_loglik))
+    return nlls.mean()
+
+def train_model(dataset, lr=.001, batch_size=32, threshold=1e-6, patience=15,
+        metric='l2'):
     '''
     Trains an exemplar classification model given a dataset.
 
@@ -129,7 +180,7 @@ def train_model(dataset, lr=.001, batch_size=32, threshold=1e-6, patience=10):
     Returns: trained `ExemplarModel`.
     '''
 
-    model = ExemplarModel()
+    model = ExemplarModel(metric=metric)
     opt   = torch.optim.Adam(model.parameters(), lr=lr)
 
     min_loss = 1000
@@ -152,7 +203,10 @@ def train_model(dataset, lr=.001, batch_size=32, threshold=1e-6, patience=10):
             opt.step()
 
         avg_loss = total_loss / num_batches
-        print("Epoch %d, average loss %f" % (curr_epoch, avg_loss))
+
+        if curr_epoch % 10 == 0:
+            print("Epoch %d, average loss %f" % (curr_epoch, avg_loss))
+
         curr_epoch += 1
 
         if avg_loss >= min_loss - threshold:
@@ -167,22 +221,61 @@ def train_model(dataset, lr=.001, batch_size=32, threshold=1e-6, patience=10):
 
     return model
 
-def accuracy(model, dataset):
+def true_loo_accuracy(emb_mats, metric='l2'):
     '''
-    Computes model classification accuracy over the given dataset.
+    Given embedding matrices for different categories, train models and return
+    leave-one-out model accuracy.
+
+    This performs LOO at two levels: at the outer level, it leaves a test
+    example out and trains on the rest (accuracy comes from here). At the
+    inner level, the training is performed by optimizing inner LOO
+    classification NLL.
 
     Args:
-        model: an instance of `ExemplarModel`.
-        dataset: a dataset like that from `build_loo_classification_dataset`.
+        emb_mabs: list of embedding matrices, one per class, each represeting
+        a list of embedding rows.
 
-    Returns: a single floating-point accuracy value.
+    Returns: floating-point LOO accuracy.
     '''
 
+    outer_dataset = build_loo_classification_dataset(emb_mats)
     num_correct = 0
-    num_total   = 0
-    for instance in dataset:
-        lik = model(instance['probe'], instance['emb_mats'])
-        _, pred = torch.max(lik, dim=0)
+    for i, instance in enumerate(outer_dataset):
+        print("Training on LOO iteration %d/%d" % (i, len(outer_dataset)))
+        inner_dataset = build_loo_classification_dataset(instance['emb_mats'])
+        model = train_model(inner_dataset, metric=metric)
+
+        lik = model(
+                instance['probe'].unsqueeze(dim=0),
+                [instance['emb_mats']])
+        b, c = lik.shape
+        assert(b == 1)
+
+        _, pred = torch.max(lik, dim=1)
         num_correct += bool((pred == instance['class']).detach())
-        num_total += 1
-    return num_correct / num_total
+
+    return num_correct / len(outer_dataset)
+
+def centroid_loo_accuracy(emb_mats):
+    '''
+    Given embedding matrices for different categories, return leave-one-out
+    accuracy of centroid classifier using L2 distance metric.
+
+    Args:
+        emb_mats: list of embedding matrices, one per class, each representing
+        a list of embedding rows.
+
+    Returns: floating-point LOO accuracy.
+    '''
+
+    dataset = build_loo_classification_dataset(emb_mats)
+    num_correct = 0
+    for instance in dataset:
+        centroids = [torch.mean(embs, dim=0) for embs in instance['emb_mats']]
+        centroids = torch.stack(centroids)
+        probe_repeated = instance['probe'].repeat(centroids.shape[0], 1)
+        dists = F.pairwise_distance(probe_repeated, centroids)
+        assert(len(dists.shape) == 1)
+        pred = torch.argmin(dists)
+        num_correct += bool((pred == instance['class']).detach())
+    return num_correct / len(dataset)
