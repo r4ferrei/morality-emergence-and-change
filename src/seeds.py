@@ -43,6 +43,7 @@ def load(
         squeeze            = True))
 
     mfd_words = pd.read_csv(os.path.join(dir, mfd_cleaned_file))
+    mfd_word_set = set()
     for _, row in mfd_words.iterrows():
         cat_id = int(row['category'])
         word = row['word']
@@ -51,6 +52,11 @@ def load(
         pol = NON_NEUTRAL_POLARITY_NAMES[(cat_id-1) % 2]
 
         res[pol][cat].append(word)
+        mfd_word_set.add(word)
+
+    # Remove neutral words that also appear as MFD words.
+    res[NEUTRAL_POLARITY_NAME] = list(
+            set(res[NEUTRAL_POLARITY_NAME]) - mfd_word_set)
 
     return res
 
