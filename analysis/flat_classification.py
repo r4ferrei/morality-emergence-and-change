@@ -12,6 +12,8 @@ parser.add_argument('--out', help='File for CSV output')
 parser.add_argument('--device', help="'cuda' or 'cpu'")
 parser.add_argument('--model', help="'exemplar' or 'centroid'",
         default='exemplar')
+parser.add_argument('--seeds',
+        help="'fixed' (through time) or 'varying' (as available in time)")
 args = parser.parse_args()
 
 out_filename = args.out
@@ -25,12 +27,20 @@ if args.device:
 MODEL = args.model
 assert(MODEL in ['centroid', 'exemplar'])
 
+SEEDS = args.seeds
+assert(SEEDS in ['fixed', 'varying'])
+
 print("Loading historical embeddings.")
 hist_embs, vocab = embeddings.load_all()
 
 print("Loading and filtering seed words.")
-#seed_words = seeds.filter_by_vocab(seeds.load(), vocab)
 seed_words = seeds.load()
+if SEEDS == 'fixed':
+    seed_words = seeds.filter_by_vocab(seed_words, vocab)
+elif SEEDS == 'varying':
+    pass
+else:
+    assert(False)
 
 def predictions_df(word_lists_per_class, embs):
     emb_mats = [
@@ -59,7 +69,13 @@ for year in years:
     print("\n---------------------------------")
     print("Running analysis for year {}".format(year))
 
-    curr_seeds = seeds.filter_by_vocab(seed_words, list(hist_embs[year].keys()))
+    if SEEDS == 'fixed':
+        curr_seeds = seed_words
+    elif SEEDS == 'varying':
+        curr_seeds = seeds.filter_by_vocab(
+                seed_words, list(hist_embs[year].keys()))
+    else:
+        assert(False)
 
     tests = [ { 'name'     : 'categorization',
                 'split_fn' : seeds.split_10_categories },
@@ -79,5 +95,6 @@ for year in years:
 
         results_df = results_df.append(df, ignore_index=True)
 
-results_df = results_df.set_index('year')
-results_df.to_csv(out_filename)
+    # Save every decade to see partial results early.
+    cached = results_df.set_index('year')
+    cached.to_csv(out_filename)
