@@ -293,6 +293,8 @@ def centroid_loo_classification(emb_mats, words_per_class):
     dataset = build_loo_classification_dataset(emb_mats, words_per_class)
     results = []
 
+    num_correct = 0
+
     for instance in dataset:
         centroids = [torch.mean(embs, dim=0) for embs in instance['emb_mats']]
         centroids = torch.stack(centroids)
@@ -300,6 +302,8 @@ def centroid_loo_classification(emb_mats, words_per_class):
         probe_repeated = instance['probe'].repeat(centroids.shape[0], 1)
         dists = F.pairwise_distance(probe_repeated, centroids)
         assert(len(dists.shape) == 1)
+
+        num_correct += bool((torch.argmin(dists) == instance['class']).detach())
 
         pred = torch.argmin(dists).detach()
         true_ = instance['class']
@@ -309,5 +313,7 @@ def centroid_loo_classification(emb_mats, words_per_class):
             'true_class'      : int(true_),
             'predicted_class' : int(pred),
             })
+
+    print("acc: {}".format(num_correct / len(dataset)))
 
     return pd.DataFrame(results)
