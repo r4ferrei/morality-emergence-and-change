@@ -69,10 +69,7 @@ def build_loo_classification_dataset(emb_mats, words_per_class):
 
 class ExemplarModel(nn.Module):
     '''
-    Exemplar model of categorization.
-    Categories are biased by the inverse of category size. In other words,
-    this model computes the mean activation across exemplars per category,
-    this de-biasing the given class sizes.
+    Kernel density estimator model of categorization using Gaussian kernel.
 
     Parameters:
         width: a single number representing the kernel width.
@@ -120,6 +117,7 @@ class ExemplarModel(nn.Module):
             dists = F.pairwise_distance(A, B)
             dists = dists.reshape(b, n)
         elif self.metric == 'cosine':
+            assert(False)
             dists = (1 - F.cosine_similarity(
                 probe_repeated, emb_mat, dim=2)) / 2
         else:
@@ -142,7 +140,10 @@ class ExemplarModel(nn.Module):
         assert((b, d) == probes.shape)
 
         dists = self.probe_to_mat_dist(probes, emb_mats)
-        acts  = torch.exp(-dists / self.kernel_width)
+        # Technically the width should be squared, but since we cancel out the
+        # outer normalization constant anyway, it doesn't make a difference and
+        # this is simpler.
+        acts  = torch.exp(-torch.pow(dists, 2) / self.kernel_width)
 
         results = []
         for i in range(b):
@@ -184,7 +185,7 @@ def batch_nll_loss(model, batch):
     nlls = -(torch.log(class_loglik) - torch.log(total_loglik))
     return nlls.mean()
 
-def train_model(dataset, lr=.001, batch_size=32, threshold=1e-6, patience=15,
+def train_model(dataset, lr=.005, batch_size=64, threshold=1e-6, patience=15,
         metric='l2'):
     '''
     Trains an exemplar classification model given a dataset.
@@ -240,7 +241,8 @@ def train_model(dataset, lr=.001, batch_size=32, threshold=1e-6, patience=15,
 
     return model
 
-def true_loo_accuracy(emb_mats, words_per_class, metric='l2'):
+def kernel_loo_classification(emb_mats, words_per_class,
+        seeds_for_fda, embs, metric='l2'):
     '''
     Given embedding matrices for different categories, train models and return
     leave-one-out model accuracy.
@@ -257,8 +259,17 @@ def true_loo_accuracy(emb_mats, words_per_class, metric='l2'):
         words_per_class: list of strings for each class, aligned with
         `emb_mats`.
 
-    Returns: floating-point LOO accuracy.
+    Returns: DataFrame with columns 'instance', 'true_class', 'predicted_class',
+        and 'kernel_width'.
     '''
+
+    try:
+        assert(seeds_for_fda is None)
+        assert(embs is None)
+    except:
+        raise NotImplementedError()
+
+    results = []
 
     outer_dataset = build_loo_classification_dataset(emb_mats, words_per_class)
     num_correct = 0
@@ -278,7 +289,16 @@ def true_loo_accuracy(emb_mats, words_per_class, metric='l2'):
         _, pred = torch.max(lik, dim=1)
         num_correct += bool((pred == instance['class']).detach())
 
-    return num_correct / len(outer_dataset)
+        results.append({
+            'instance'        : str(instance['probe_str']),
+            'true_class'      : int(instance['class']),
+            'predicted_class' : int(pred.detach()),
+            'kernel_width'    : float(model.kernel_width.detach()),
+            })
+
+    print("acc: {}".format(num_correct / len(outer_dataset)))
+
+    return pd.DataFrame(results)
 
 #fda_cache = {}
 #fda_filename = 'fda_cache.pkl'
