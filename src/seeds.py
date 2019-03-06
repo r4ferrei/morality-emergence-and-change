@@ -106,8 +106,10 @@ def filter_by_vocab(seeds, vocab):
 
 def split_pos_neg(seeds):
     '''
-    Given seeds from `load`, returns tuple with two lists of words:
-    positive polarity seed words, and negative polarity seed words.
+    Given seeds from `load`, returns a tuple of:
+        - tuple of string labels for the classes;
+        - tuple with two lists of words:
+          positive polarity seed words, and negative polarity seed words.
     '''
 
     pos = []
@@ -125,12 +127,15 @@ def split_pos_neg(seeds):
         for word in seeds[minus][cat]:
             neg.append(word)
 
-    return pos, neg
+    return ('pos', 'neg'), (pos, neg)
 
 def split_neutral_moral(seeds):
     '''
-    Given seeds from `load`, returns tuple with two lists of words:
-    neutral seed words, and non-neutral (pos/neg polarity) seed words.
+    Given seeds from `load`, returns tuple with:
+    
+        - tuple of string labels;
+        - two lists of words:
+          neutral seed words, and non-neutral (pos/neg polarity) seed words.
     '''
 
     neutral = []
@@ -144,7 +149,7 @@ def split_neutral_moral(seeds):
             for word in seeds[pol][cat]:
                 moral.append(word)
 
-    return neutral, moral
+    return ('neutral', 'moral'), (neutral, moral)
 
 def split_10_categories(seeds):
     '''

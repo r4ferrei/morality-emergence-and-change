@@ -3,10 +3,12 @@ import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
+import pandas as pd
+import copy
 
 DEVICE = 'cpu'
 
-def build_loo_classification_dataset(emb_mats):
+def build_loo_classification_dataset(emb_mats, words_per_class):
     '''
     Given embedding matrices for different categories, return a leave-one-out
     classification task dataset.
@@ -16,18 +18,29 @@ def build_loo_classification_dataset(emb_mats):
         each matrix has N_i rows, where N_i is the size of the i-th class,
         by D columns, where D is the embedding dimension.
 
+        words_per_class: [C, N_i] list of string words per class, aligned
+        with `emb_mats`.
+
     Returns: a list of classification frames. Each classification frame is
     a dictionary with:
         - 'probe': a [D] tensor;
+        - 'probe_str' : string corresponding to probe;
         - 'class': an integer class index corresponding to the probe;
         - 'emb_mats': a list of tensors corresponding to the embedding matrices,
             except that the probe is excluded from its corresponding class.
+        - 'words_per_class': same as the given `words_per_class`, except that
+            the probe is dropped.
     '''
 
     emb_mats = [torch.tensor(m, device=DEVICE) for m in emb_mats]
 
     def drop_row(A, i):
         return torch.cat((A[:i], A[(i+1):]))
+
+    def drop_word(W, i, j):
+        V = copy.deepcopy(W)
+        del V[i][j]
+        return V
 
     res = []
     for i in range(len(emb_mats)):
@@ -42,9 +55,11 @@ def build_loo_classification_dataset(emb_mats):
                         else emb_mats[k])
 
             res.append({
-                'probe'    : probe,
-                'class'    : class_,
-                'emb_mats' : this_emb_mats
+                'probe'           : probe,
+                'probe_str'       : words_per_class[i][j],
+                'class'           : class_,
+                'emb_mats'        : this_emb_mats,
+                'words_per_class' : drop_word(words_per_class, i, j),
                 })
     return res
 
@@ -221,7 +236,7 @@ def train_model(dataset, lr=.001, batch_size=32, threshold=1e-6, patience=15,
 
     return model
 
-def true_loo_accuracy(emb_mats, metric='l2'):
+def true_loo_accuracy(emb_mats, words_per_class, metric='l2'):
     '''
     Given embedding matrices for different categories, train models and return
     leave-one-out model accuracy.
@@ -232,17 +247,22 @@ def true_loo_accuracy(emb_mats, metric='l2'):
     classification NLL.
 
     Args:
-        emb_mabs: list of embedding matrices, one per class, each represeting
+        emb_mats: list of embedding matrices, one per class, each represeting
         a list of embedding rows.
+
+        words_per_class: list of strings for each class, aligned with
+        `emb_mats`.
 
     Returns: floating-point LOO accuracy.
     '''
 
-    outer_dataset = build_loo_classification_dataset(emb_mats)
+    outer_dataset = build_loo_classification_dataset(emb_mats, words_per_class)
     num_correct = 0
     for i, instance in enumerate(outer_dataset):
         print("Training on LOO iteration %d/%d" % (i, len(outer_dataset)))
-        inner_dataset = build_loo_classification_dataset(instance['emb_mats'])
+        inner_dataset = build_loo_classification_dataset(
+                instance['emb_mats'],
+                instance['words_per_class'])
         model = train_model(inner_dataset, metric=metric)
 
         lik = model(
@@ -256,38 +276,38 @@ def true_loo_accuracy(emb_mats, metric='l2'):
 
     return num_correct / len(outer_dataset)
 
-def centroid_loo_accuracy(emb_mats):
+def centroid_loo_classification(emb_mats, words_per_class):
     '''
     Given embedding matrices for different categories, return leave-one-out
-    accuracy of centroid classifier using L2 distance metric.
+    classification results of centroid classifier using L2 distance metric.
 
     Args:
         emb_mats: list of embedding matrices, one per class, each representing
         a list of embedding rows.
 
-    Returns: floating-point LOO accuracy.
+        words_per_class: list of strings per class, aligned with `emb_mats`.
+
+    Returns: DataFrame with columns 'instance', 'true_class', 'predicted_class'.
     '''
 
-    dataset = build_loo_classification_dataset(emb_mats)
-    num_correct = 0
-    per_class = {}
+    dataset = build_loo_classification_dataset(emb_mats, words_per_class)
+    results = []
+
     for instance in dataset:
         centroids = [torch.mean(embs, dim=0) for embs in instance['emb_mats']]
         centroids = torch.stack(centroids)
+
         probe_repeated = instance['probe'].repeat(centroids.shape[0], 1)
         dists = F.pairwise_distance(probe_repeated, centroids)
         assert(len(dists.shape) == 1)
-        pred = torch.argmin(dists)
-        is_correct = bool((pred == instance['class']).detach())
-        num_correct += is_correct
 
-        if instance['class'] not in per_class:
-            per_class[instance['class']] = []
-        per_class[instance['class']].append(is_correct)
+        pred = torch.argmin(dists).detach()
+        true_ = instance['class']
 
-    for k in per_class:
-        per_class[k] = sum(per_class[k]) / len(per_class[k])
-    #print("Per-class accuracy:")
-    #print(per_class)
+        results.append({
+            'instance'        : str(instance['probe_str']),
+            'true_class'      : int(true_),
+            'predicted_class' : int(pred),
+            })
 
-    return num_correct / len(dataset)
+    return pd.DataFrame(results)
