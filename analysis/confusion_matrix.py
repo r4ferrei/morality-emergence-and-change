@@ -10,12 +10,14 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--file', help="Raw classification results file.")
 parser.add_argument('--yearly', action='store_true',
         help="Plots by decade in addition to aggregate.")
+parser.add_argument('--year', type=int, help="Specific year to plot.")
 parser.add_argument('--save', action='store_true', help="Save plots.")
 args = parser.parse_args()
 
 FILE = args.file
 SAVE = args.save
 YEARLY = args.yearly
+YEAR = args.year
 assert(FILE)
 
 plt.ion()
@@ -26,7 +28,7 @@ tests = set(df['test'])
 years = set(df['year'])
 
 def confusion_matrix(df, name):
-    classes = list(set(df['predicted_class']) | set(df['true_class']))
+    classes = sorted(list(set(df['predicted_class']) | set(df['true_class'])))
     for class_id, class_ in enumerate(classes):
         for col in ['predicted_class', 'true_class']:
             df.loc[df[col] == class_, col] = class_id
@@ -45,9 +47,15 @@ for test in tests:
     general_name = "confusion_matrix_%s" % test
 
     df_test = df[df['test'] == test].copy()
-    confusion_matrix(df_test, general_name)
 
-    if YEARLY:
-        for year in years:
-            df_test_year = df_test[df_test['year'] == year].copy()
-            confusion_matrix(df_test_year, "%s_%d" % (general_name, year))
+    if YEAR:
+        year = YEAR
+        df_test_year = df_test[df_test['year'] == year].copy()
+        confusion_matrix(df_test_year, "%s_%d" % (general_name, year))
+    else:
+        confusion_matrix(df_test, general_name)
+
+        if YEARLY:
+            for year in years:
+                df_test_year = df_test[df_test['year'] == year].copy()
+                confusion_matrix(df_test_year, "%s_%d" % (general_name, year))
