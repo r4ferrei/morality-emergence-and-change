@@ -5,8 +5,12 @@ from torch import nn
 import torch.nn.functional as F
 import pandas as pd
 import copy
+import embeddings
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+import os
+import pickle
 
-DEVICE = 'cpu'
+DEVICE = 'cuda'
 
 def build_loo_classification_dataset(emb_mats, words_per_class):
     '''
@@ -276,7 +280,36 @@ def true_loo_accuracy(emb_mats, words_per_class, metric='l2'):
 
     return num_correct / len(outer_dataset)
 
-def centroid_loo_classification(emb_mats, words_per_class):
+#fda_cache = {}
+#fda_filename = 'fda_cache.pkl'
+#
+#def load_fda_cache():
+#    global fda_cache
+#    try:
+#        with open(fda_filename, 'rb') as f:
+#            fda_cache = pickle.load(f)
+#    except FileNotFoundError:
+#        pass
+#
+#def persist_fda_cache():
+#    global fda_cache
+#    with open(fda_filename, 'wb') as f:
+#        pickle.dump(fda_cache, f)
+
+def cached_fit_fda(X, y):
+    fda = LinearDiscriminantAnalysis(solver='eigen', shrinkage=.5)
+    fda.fit(X, y)
+    return fda
+
+#    key = (np.array(X).tobytes(), np.array(y).tobytes())
+#    if key not in fda_cache:
+#        fda = LinearDiscriminantAnalysis(solver='eigen', shrinkage=.5)
+#        fda.fit(X, y)
+#        fda_cache[key] = fda
+#    return fda_cache[key]
+
+def centroid_loo_classification(emb_mats, words_per_class,
+        seeds_for_fda, embs):
     '''
     Given embedding matrices for different categories, return leave-one-out
     classification results of centroid classifier using L2 distance metric.
@@ -290,12 +323,47 @@ def centroid_loo_classification(emb_mats, words_per_class):
     Returns: DataFrame with columns 'instance', 'true_class', 'predicted_class'.
     '''
 
+    def fit_fda(probe_str_to_block):
+        X = []
+        y = []
+
+        found_probe = False
+        for i, words in enumerate(seeds_for_fda):
+            emb_mat = embeddings.convert_words_to_embedding_matrix(words, embs)
+
+            for word, vec in zip(words, emb_mat):
+                if word == probe_str_to_block:
+                    found_probe = True
+                else:
+                    X.append(vec)
+                    y.append(i)
+
+        assert(found_probe)
+
+        fda = cached_fit_fda(X, y)
+        return fda
+
+    def fda_transform(instance):
+        instance['emb_mats'] = [
+                fda.transform(emb_mat) for emb_mat in instance['emb_mats']]
+        instance['emb_mats'] = [
+                torch.tensor(m, device=DEVICE) for m in instance['emb_mats']]
+
+        instance['probe'] = fda.transform(instance['probe'].reshape(1, -1))[0]
+        instance['probe'] = torch.tensor(instance['probe'], device=DEVICE)
+
     dataset = build_loo_classification_dataset(emb_mats, words_per_class)
     results = []
 
     num_correct = 0
 
+    #load_fda_cache()
+
     for instance in dataset:
+        if seeds_for_fda:
+            fda = fit_fda(instance['probe_str'])
+            fda_transform(instance)
+
         centroids = [torch.mean(embs, dim=0) for embs in instance['emb_mats']]
         centroids = torch.stack(centroids)
 
@@ -313,6 +381,8 @@ def centroid_loo_classification(emb_mats, words_per_class):
             'true_class'      : int(true_),
             'predicted_class' : int(pred),
             })
+
+    #persist_fda_cache()
 
     print("acc: {}".format(num_correct / len(dataset)))
 

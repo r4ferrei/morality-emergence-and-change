@@ -14,6 +14,8 @@ parser.add_argument('--model', help="'exemplar' or 'centroid'",
         default='exemplar')
 parser.add_argument('--seeds',
         help="'fixed' (through time) or 'varying' (as available in time)")
+parser.add_argument('--fda', action='store_true',
+        help="Perform FDA on embedding space.")
 args = parser.parse_args()
 
 out_filename = args.out
@@ -30,6 +32,8 @@ assert(MODEL in ['centroid', 'exemplar'])
 SEEDS = args.seeds
 assert(SEEDS in ['fixed', 'varying'])
 
+FDA = args.fda
+
 print("Loading historical embeddings.")
 hist_embs, vocab = embeddings.load_all()
 
@@ -42,17 +46,22 @@ elif SEEDS == 'varying':
 else:
     assert(False)
 
-def predictions_df(word_lists_per_class, embs):
+def predictions_df(word_lists_per_class, embs, seeds_for_fda):
     emb_mats = [
             embeddings.convert_words_to_embedding_matrix(words, embs)
             for words in word_lists_per_class
             ]
+
     if MODEL == 'exemplar':
         return categorization.kernel_loo_classification(
-                emb_mats, word_lists_per_class)
+                emb_mats, word_lists_per_class,
+                seeds_for_fda=seeds_for_fda,
+                embs = (embs if seeds_for_fda else None))
     elif MODEL == 'centroid':
         return categorization.centroid_loo_classification(
-                emb_mats, word_lists_per_class)
+                emb_mats, word_lists_per_class,
+                seeds_for_fda=seeds_for_fda,
+                embs = (embs if seeds_for_fda else None))
     else:
         assert(False)
 
@@ -61,6 +70,16 @@ def apply_class_labels(df, class_labels):
     for col in col_names:
         for i, label in enumerate(class_labels):
             df.loc[df[col] == i, col] = label
+
+def labelled_seed_dataset_from_split(seed_words, embs):
+    X = []
+    y = []
+    for i, words in enumerate(seed_words):
+        emb_mat = embeddings.convert_words_to_embedding_matrix(words, embs)
+        for vec in emb_mat:
+            X.append(vec)
+            y.append(i)
+    return X, y
 
 results_df = pd.DataFrame()
 years = reversed(sorted(list(hist_embs.keys()))) # later years first
@@ -77,6 +96,9 @@ for year in years:
     else:
         assert(False)
 
+    if FDA:
+        _, all_seeds = seeds.split_11_categories(curr_seeds)
+
     tests = [ { 'name'     : 'categorization',
                 'split_fn' : seeds.split_10_categories },
               { 'name'     : 'null_test', # 'null' is NaN for Pandas, headache.
@@ -87,7 +109,8 @@ for year in years:
     for test in tests:
         print("Running test '%s'" % test['name'])
         class_labels, words_per_class = test['split_fn'](curr_seeds)
-        df = predictions_df(words_per_class, hist_embs[year])
+        df = predictions_df(words_per_class, hist_embs[year],
+                seeds_for_fda = (all_seeds if FDA else None))
 
         apply_class_labels(df, class_labels)
         df['test'] = test['name']
