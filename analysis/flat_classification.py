@@ -63,7 +63,7 @@ for year in years:
 
     tests = [ { 'name'     : 'categorization',
                 'split_fn' : seeds.split_10_categories },
-              { 'name'     : 'null',
+              { 'name'     : 'null_test', # 'null' is NaN for Pandas, headache.
                 'split_fn' : seeds.split_neutral_moral },
               { 'name'     : 'polarity',
                 'split_fn' : seeds.split_pos_neg } ]
