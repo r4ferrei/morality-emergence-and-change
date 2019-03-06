@@ -17,7 +17,8 @@ args = parser.parse_args()
 
 out_filename = args.out
 assert(out_filename)
-assert(not os.path.exists(out_filename))
+if not out_filename.startswith('/dev/'):
+    assert(not os.path.exists(out_filename))
 
 if args.device:
     categorization.DEVICE = args.device
@@ -47,7 +48,8 @@ def accuracy(word_lists_per_class, embs):
         return categorization.centroid_loo_accuracy(emb_mats)
 
 results_df = pd.DataFrame()
-for year in hist_embs:
+years = reversed(sorted(list(hist_embs.keys()))) # later years first
+for year in years:
     print("\n---------------------------------")
     print("Running analysis for year {}".format(year))
 
