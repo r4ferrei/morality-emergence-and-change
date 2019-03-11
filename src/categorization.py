@@ -91,7 +91,7 @@ class ExemplarModel(nn.Module):
 
         super().__init__()
         self.kernel_width = nn.Parameter(
-                torch.tensor([1.], dtype=torch.float64, device=DEVICE))
+                torch.tensor([.1], dtype=torch.float64, device=DEVICE))
         self.metric = metric
 
     def probe_to_mat_dist(self, probe, emb_mat):
