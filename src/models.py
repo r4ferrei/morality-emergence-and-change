@@ -9,6 +9,11 @@ from hyperopt import hp, tpe, fmin, Trials
 from scipy.spatial.distance import cosine
 
 def load_mfd_df():
+    '''
+    Load the moral foundations dictionary and pull word representations for each seed word.
+    Returns a dataframe with the following columns:
+    WORD | VECTOR | CATEGORY | YEAR
+    '''
     emb_dict,_ = embeddings.load_all(dir=constant.SGNS_DIR)
     s = seeds.load(constant.DATA_DIR)
     s_plus = {k+'+':v for k,v in s['+'].items()}
@@ -20,19 +25,22 @@ def load_mfd_df():
             for year in constant.ALL_YEARS:
                 yr_emb_dict = emb_dict[year]
                 if word in yr_emb_dict:
-                    items.append({constant.WORD:word, constant.CATEGORY:cat, constant.YEAR:year, constant.VECTOR: yr_emb_dict[word]})
+                    items.append({constant.WORD:word, constant.CATEGORY:cat, 
+                    constant.YEAR:year, constant.VECTOR: yr_emb_dict[word]})
     cat_df = pd.DataFrame(items)
+    return cat_df
     pickle.dump(cat_df, open(constant.MFD_DF, 'wb'))
 
 class CentroidModel():
-
-    path = 'models/averagemodel.pkl'
-    name = 'Centroid Model'
+    '''
+    A single centroid classification layer
+    '''
 
     def __calc_prob(self, X, h):
         X_1 = np.exp(np.multiply(X,-1/h))
         softmax_prob = X_1 / np.sum(X_1, axis=0)
         if np.any(np.isnan(softmax_prob)):
+            print('wrong', softmax_prob)
             return [0]*len(X)
         return softmax_prob
 
@@ -68,6 +76,7 @@ class CentroidModel():
 
         tpe_best = fmin(fn=obj_func, space=space, algo=tpe_algo, trials=tpe_trials, max_evals=500)
         self.h = tpe_best['x']
+        assert self.h != 0
         print(tpe_best)
 
     def predict(self, data):
@@ -78,10 +87,10 @@ class CentroidModel():
         return all_guesses
 
 class TwoTierCentroidModel():
-
-    path = 'models/averagemodel.pkl'
-    name = 'Centroid Model'
-
+    '''
+    Multi-layered centroid model
+    '''
+    
     def predict_proba(self, data):
         binary_proba = self.t1.predict_proba(data)
         pos_cat_proba = [{k:binary_proba[i]['+']*v for k,v in x.items()} for i,x in enumerate(self.t2_pos.predict_proba(data))]
