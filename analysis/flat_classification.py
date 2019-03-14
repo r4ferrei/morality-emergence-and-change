@@ -16,6 +16,8 @@ parser.add_argument('--seeds',
         help="'fixed' (through time) or 'varying' (as available in time)")
 parser.add_argument('--fda', action='store_true',
         help="Perform FDA on embedding space.")
+parser.add_argument('--remove-duplicates', action='store_true',
+        help="Remove seed words that belong to more than one category.")
 args = parser.parse_args()
 
 out_filename = args.out
@@ -33,12 +35,13 @@ SEEDS = args.seeds
 assert(SEEDS in ['fixed', 'varying'])
 
 FDA = args.fda
+REMOVE_DUPLICATES = args.remove_duplicates
 
 print("Loading historical embeddings.")
 hist_embs, vocab = embeddings.load_all()
 
 print("Loading and filtering seed words.")
-seed_words = seeds.load()
+seed_words = seeds.load(remove_duplicates=REMOVE_DUPLICATES)
 if SEEDS == 'fixed':
     seed_words = seeds.filter_by_vocab(seed_words, vocab)
 elif SEEDS == 'varying':

@@ -12,7 +12,8 @@ NEUTRAL_POLARITY_NAME = '0'
 def load(
         dir='local-data/',
         mfd_cleaned_file='mfd_v1.csv',
-        neutral_file='words_sorted_by_valence_deviation.csv'):
+        neutral_file='words_sorted_by_valence_deviation.csv',
+        remove_duplicates=False):
     '''
     Loads seed words for all MFT and neutral categories.
 
@@ -23,6 +24,9 @@ def load(
             follow the order in `MFT_CATEGORY_NAMES`.
         neutral_words: name of file containing a CSV ordered by "most neutral"
             word first, and containing column 'Word'.
+        remove_duplicates: whether to ignore words that appear in more than
+            one set or category. Word that appear in one MFD are removed
+            from the neutral set.
 
     Returns: multi-level dictionary where:
         - first level (polarity) contains keys '+', '-', '0';
@@ -58,6 +62,21 @@ def load(
         pol = NON_NEUTRAL_POLARITY_NAMES[(cat_id-1) % 2]
 
         res[pol][cat].append(word)
+
+    if remove_duplicates:
+        mfd_counts = {}
+        for pol in NON_NEUTRAL_POLARITY_NAMES:
+            for cat in MFT_CATEGORY_NAMES:
+                for word in res[pol][cat]:
+                    mfd_counts[word] = mfd_counts.get(word, 0) + 1
+
+        for pol in NON_NEUTRAL_POLARITY_NAMES:
+            for cat in MFT_CATEGORY_NAMES:
+                res[pol][cat] = [w for w in res[pol][cat]
+                        if mfd_counts[w] == 1]
+
+        res[NEUTRAL_POLARITY_NAME] = [w for w in res[NEUTRAL_POLARITY_NAME]
+                if w not in mfd_counts]
 
     return res
 

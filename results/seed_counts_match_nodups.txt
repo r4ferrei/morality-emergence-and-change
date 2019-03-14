@@ -1,0 +1,11 @@
+{'+': {'care': 18,
+  'fairness': 18,
+  'loyalty': 17,
+  'authority': 46,
+  'sanctity': 29},
+ '-': {'care': 29,
+  'fairness': 14,
+  'loyalty': 6,
+  'authority': 17,
+  'sanctity': 38},
+ '0': 232}
