@@ -10,9 +10,9 @@ NON_NEUTRAL_POLARITY_NAMES = ['+', '-']
 NEUTRAL_POLARITY_NAME = '0'
 
 def load(
-        dir='data/seed-words',
-        mfd_cleaned_file='cleaned_words.csv',
-        neutral_file='neutral_words.csv'):
+        dir='local-data/',
+        mfd_cleaned_file='mfd_v1.csv',
+        neutral_file='words_sorted_by_valence_deviation.csv'):
     '''
     Loads seed words for all MFT and neutral categories.
 
@@ -21,13 +21,18 @@ def load(
         mfd_cleaned_file: name of file containing CSV with 'category' and
             'word' columns. The category column should be 1-indexed and
             follow the order in `MFT_CATEGORY_NAMES`.
-        neutral_words: name of file containing a simple list of neutral words.
+        neutral_words: name of file containing a CSV ordered by "most neutral"
+            word first, and containing column 'Word'.
 
     Returns: multi-level dictionary where:
         - first level (polarity) contains keys '+', '-', '0';
         - second level for '+' and '-' contains keys `MFT_CATEGORY_NAMES`;
         - neutral polarity ('0') contains no second level index;
         - dictionary values are lists of words.
+
+    NOTE: the order of neutral words returned is important; do not change,
+    since word will be filtered in that order in `filter_by_vocab` to match
+    the size of the set of MFD seed words.
     '''
 
     res = {}
@@ -37,26 +42,22 @@ def load(
         for cat in MFT_CATEGORY_NAMES:
             res[pol][cat] = []
 
-    res[NEUTRAL_POLARITY_NAME] = list(pd.read_csv(
-        filepath_or_buffer = os.path.join(dir, neutral_file),
-        header             = None,
-        squeeze            = True))
+    neutral = pd.read_csv(os.path.join(dir, neutral_file))
+    res[NEUTRAL_POLARITY_NAME] = list(neutral['Word'])
 
     mfd_words = pd.read_csv(os.path.join(dir, mfd_cleaned_file))
-    mfd_word_set = set()
     for _, row in mfd_words.iterrows():
         cat_id = int(row['category'])
         word = row['word']
+
+        if cat_id > 10: # skip general morality category from MFD v1
+            assert(cat_id == 11)
+            continue
 
         cat = MFT_CATEGORY_NAMES[(cat_id-1) // 2]
         pol = NON_NEUTRAL_POLARITY_NAMES[(cat_id-1) % 2]
 
         res[pol][cat].append(word)
-        mfd_word_set.add(word)
-
-    # Remove neutral words that also appear as MFD words.
-    res[NEUTRAL_POLARITY_NAME] = list(
-            set(res[NEUTRAL_POLARITY_NAME]) - mfd_word_set)
 
     return res
 
@@ -80,28 +81,40 @@ def seed_counts(seeds):
 
 def filter_by_vocab(seeds, vocab):
     '''
-    Filters a seed word structure to those present in the vocabulary.
+    Filters a seed word structure to those present in the vocabulary, and
+    matches the number of neutral seed words to moral seed words.
 
     Args:
         seeds: seed words structure as produced by `load`.
         vocab: list of words in the vocabulary.
 
     Returns: similar structure to `seeds` where each word list is intersected
-    with `vocab`.
+    with `vocab` and there are no more neutral seed words than pos+neg moral
+    seed words.
     '''
 
     vocab = set(vocab)
 
-    res = copy.deepcopy(seeds)
-    for k, v in res.items():
-        if isinstance(v, list):
-            res[k] = list(set(v) & vocab)
-        elif isinstance(v, dict):
-            for k2, v2 in v.items():
-                assert(isinstance(v2, list))
-                res[k][k2] = list(set(v2) & vocab)
-        else:
-            assert(False)
+    res = {}
+    num_moral_seeds = 0
+    for pol in NON_NEUTRAL_POLARITY_NAMES:
+        res[pol] = {}
+        for cat in MFT_CATEGORY_NAMES:
+            res[pol][cat] = []
+            for word in seeds[pol][cat]:
+                if word in vocab:
+                    res[pol][cat].append(word)
+                    num_moral_seeds += 1
+
+    res[NEUTRAL_POLARITY_NAME] = []
+    num_neutral_seeds = 0
+    for word in seeds[NEUTRAL_POLARITY_NAME]:
+        if word in vocab:
+            res[NEUTRAL_POLARITY_NAME].append(word)
+            num_neutral_seeds += 1
+            if num_neutral_seeds >= num_moral_seeds:
+                break
+
     return res
 
 def split_pos_neg(seeds):
