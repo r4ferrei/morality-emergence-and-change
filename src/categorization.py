@@ -9,6 +9,7 @@ import embeddings
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 import os
 import pickle
+import collections
 
 DEVICE = 'cuda'
 
@@ -403,6 +404,56 @@ def centroid_loo_classification(emb_mats, words_per_class,
             })
 
     #persist_fda_cache()
+
+    print("acc: {}".format(num_correct / len(dataset)))
+
+    return pd.DataFrame(results)
+
+def knn_loo_classification(emb_mats, words_per_class, k=15):
+    '''
+    Given embedding matrices for different categories, return leave-one-out
+    classification results of kNN classifier using L2 distance metric.
+
+    Args:
+        emb_mats: list of embedding matrices, one per class, each representing
+        a list of embedding rows.
+
+        words_per_class: list of strings per class, aligned with `emb_mats`.
+
+        k: number of neighbours to compare to.
+
+    Returns: DataFrame with columns 'instance', 'true_class', 'predicted_class'.
+    '''
+
+    dataset = build_loo_classification_dataset(emb_mats, words_per_class)
+    results = []
+
+    num_correct = 0
+
+    for instance in dataset:
+        dists_labels = []
+
+        for i, emb_mat in enumerate(instance['emb_mats']):
+            probe_repeated = instance['probe'].repeat(len(emb_mat), 1)
+            dists = F.pairwise_distance(probe_repeated, emb_mat)
+            assert(len(dists.shape) == 1)
+
+            for dist in dists.detach().cpu():
+                dists_labels.append((float(dist), i))
+
+        dists_labels.sort()
+        dists_labels = dists_labels[:k]
+        counter = collections.Counter([lab for _, lab in dists_labels])
+
+        pred = counter.most_common(1)[0][0]
+        true_ = instance['class']
+        num_correct += (pred == true_)
+
+        results.append({
+            'instance'        : str(instance['probe_str']),
+            'true_class'      : int(true_),
+            'predicted_class' : int(pred),
+            })
 
     print("acc: {}".format(num_correct / len(dataset)))
 

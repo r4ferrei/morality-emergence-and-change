@@ -10,7 +10,7 @@ import categorization
 parser = argparse.ArgumentParser()
 parser.add_argument('--out', help='File for CSV output')
 parser.add_argument('--device', help="'cuda' or 'cpu'")
-parser.add_argument('--model', help="'exemplar' or 'centroid'",
+parser.add_argument('--model', help="'exemplar', 'centroid', 'knn'",
         default='exemplar')
 parser.add_argument('--seeds',
         help="'fixed' (through time) or 'varying' (as available in time)")
@@ -19,6 +19,7 @@ parser.add_argument('--fda', action='store_true',
 parser.add_argument('--remove-duplicates', action='store_true',
         help="Remove seed words that belong to more than one category.")
 parser.add_argument('--mfd-file', help="Name of MFD file in seeds dir.")
+#parser.add_argument('--k', help="k parameter for kNN classifier.")
 args = parser.parse_args()
 
 out_filename = args.out
@@ -30,7 +31,7 @@ if args.device:
     categorization.DEVICE = args.device
 
 MODEL = args.model
-assert(MODEL in ['centroid', 'exemplar'])
+assert(MODEL in ['centroid', 'exemplar', 'knn'])
 
 SEEDS = args.seeds
 assert(SEEDS in ['fixed', 'varying'])
@@ -71,6 +72,9 @@ def predictions_df(word_lists_per_class, embs, seeds_for_fda):
                 emb_mats, word_lists_per_class,
                 seeds_for_fda=seeds_for_fda,
                 embs = (embs if seeds_for_fda else None))
+    elif MODEL == 'knn':
+        return categorization.knn_loo_classification(
+                emb_mats, word_lists_per_class)
     else:
         assert(False)
 
