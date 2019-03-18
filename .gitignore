@@ -5,3 +5,4 @@ __pycache__
 .nfs*
 *.log
 .vscode/settings.json
+*.pkl
