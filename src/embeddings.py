@@ -1,6 +1,9 @@
 import os
 import pickle
 import numpy as np
+import scipy.io as sio
+import pandas as pd
+from nltk.corpus import stopwords
 
 def load(
         dir='data/hamilton-historical-embeddings/sgns/',
@@ -23,6 +26,21 @@ def load(
                 dic[word] = vec
 
         return dic
+
+def load_all_nyt(
+        dir='data/nyt'):
+    base_year = 1990
+    word_hash_df = pd.read_csv(os.path.join(dir, 'wordlist.csv'))
+    assert len(list(word_hash_df.iterrows())) == 20000
+    dic = {}
+    for i in range(20):
+        embeddings = {}
+        mat_contents = sio.loadmat(os.path.join(dir, 'embeddings%d.mat' % i))
+        embd_arr = mat_contents['U_%d' % i]
+        for index, row in word_hash_df.iterrows():
+            embeddings[row['word']] = embd_arr[index]
+        dic[base_year+i] = embeddings
+    return dic, list(word_hash_df['word'].values)
 
 def load_all(
         dir='data/hamilton-historical-embeddings/sgns/',
@@ -79,3 +97,14 @@ def convert_words_to_embedding_matrix(words, embs):
         except:
             raise ValueError("no embedding for '%s'" % word)
     return res
+
+def get_sent_embed(emb_dict, phrase):
+    if emb_dict is None:
+        return None
+    vocab = set(emb_dict.keys())
+    stop_words = set(stopwords.words('english'))
+    word_list = [x.lower() for x in phrase.split()]
+    word_list = [emb_dict[x] for x in word_list if x not in stop_words and x in vocab]
+    if len(word_list) > 0:
+        return np.mean(word_list, axis=0)
+    return None
