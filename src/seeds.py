@@ -25,14 +25,15 @@ def load(
         neutral_words: name of file containing a CSV ordered by "most neutral"
             word first, and containing column 'Word'.
         remove_duplicates: whether to ignore words that appear in more than
-            one set or category. Word that appear in one MFD are removed
-            from the neutral set.
+            one category.
 
     Returns: multi-level dictionary where:
         - first level (polarity) contains keys '+', '-', '0';
         - second level for '+' and '-' contains keys `MFT_CATEGORY_NAMES`;
         - neutral polarity ('0') contains no second level index;
         - dictionary values are lists of words.
+
+    Words that appear in one MFD are removed from the neutral set.
 
     NOTE: the order of neutral words returned is important; do not change,
     since word will be filtered in that order in `filter_by_vocab` to match
@@ -63,20 +64,20 @@ def load(
 
         res[pol][cat].append(word)
 
-    if remove_duplicates:
-        mfd_counts = {}
-        for pol in NON_NEUTRAL_POLARITY_NAMES:
-            for cat in MFT_CATEGORY_NAMES:
-                for word in res[pol][cat]:
-                    mfd_counts[word] = mfd_counts.get(word, 0) + 1
+    mfd_counts = {}
+    for pol in NON_NEUTRAL_POLARITY_NAMES:
+        for cat in MFT_CATEGORY_NAMES:
+            for word in res[pol][cat]:
+                mfd_counts[word] = mfd_counts.get(word, 0) + 1
 
+    if remove_duplicates:
         for pol in NON_NEUTRAL_POLARITY_NAMES:
             for cat in MFT_CATEGORY_NAMES:
                 res[pol][cat] = [w for w in res[pol][cat]
                         if mfd_counts[w] == 1]
 
-        res[NEUTRAL_POLARITY_NAME] = [w for w in res[NEUTRAL_POLARITY_NAME]
-                if w not in mfd_counts]
+    res[NEUTRAL_POLARITY_NAME] = [w for w in res[NEUTRAL_POLARITY_NAME]
+            if w not in mfd_counts]
 
     return res
 
