@@ -6,7 +6,6 @@ import embeddings
 import pickle
 import os
 from sklearn.neighbors import KNeighborsClassifier
-from hyperopt import hp, tpe, fmin, Trials
 from scipy.spatial.distance import cosine
 from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics.pairwise import cosine_similarity
@@ -171,8 +170,8 @@ class TwoTierCentroidModel():
     def fit(self, df):
         binary_df = df.copy()
         binary_df[constant.CATEGORY] = ['+' if '+' in x else '-' for x in df[constant.CATEGORY].values]
-        pos_df = df.loc[df[constant.CATEGORY].isin(set(['care+','loyalty+','fairness+','authority+','sanctity+']))]
-        neg_df = df.loc[df[constant.CATEGORY].isin(set(['care-','loyalty-','fairness-','authority-','sanctity-']))]
+        pos_df = df.loc[df[constant.CATEGORY].isin({'care+','loyalty+','fairness+','authority+','sanctity+'})]
+        neg_df = df.loc[df[constant.CATEGORY].isin({'care-','loyalty-','fairness-','authority-','sanctity-'})]
         self.t1.fit(binary_df)
         self.t2_pos.fit(pos_df)
         self.t2_neg.fit(neg_df)
