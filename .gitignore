@@ -4,4 +4,5 @@
 __pycache__
 .nfs*
 *.log
-.vscode/settings.json
+.vscode/
+.idea/

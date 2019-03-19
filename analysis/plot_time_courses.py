@@ -3,42 +3,82 @@ import constant
 import embeddings
 import os
 import pandas as pd
+import models
 from models import CentroidModel,TwoTierCentroidModel
-import tabulate
 import matplotlib.pyplot as plt
+import numpy as np
+from sklearn import preprocessing
 
-test_words = ['slavery', 'feminism', 'racism', 'abortion', 'automation', 'computer', 'diversity', 'education', 'electric', 'engineer', 'environment', 'feminism', 'immigration', 'information', 'machine', 'mechanic', 'nazism', 'phone', 'privacy', 'racism', 'religion', 'robotics', 'sexism', 'technology']
+def load_test_df(emb_dict_all=None, reload=False):
+    if reload:
+        test_df = []
+        for year in years:
+            yr_emb_dict = emb_dict_all[year]
+            for i,word in enumerate(test_words):
+                if word in yr_emb_dict:
+                    test_df.append({constant.YEAR:year,constant.WORD:word,constant.VECTOR:yr_emb_dict[word]})
+        pickle.dump(pd.DataFrame(test_df),open(os.path.join(constant.TEMP_DATA_DIR, 'words.pkl'), 'wb'))
+    return pickle.load(open(os.path.join(constant.TEMP_DATA_DIR, 'words.pkl'), 'rb'))
+
+# Params
+binary_fine_grained = np.array(['BINARY', 'FINEGRAINED'])[[True, False]]
+plot_separate = False
+mfd_year = 1990
+load = False
 years = constant.ALL_YEARS
+test_words = ['slavery', 'feminism', 'racism', 'abortion', 'automation', 'computer', 'diversity',
+              'education', 'electric', 'engineer', 'environment', 'feminism', 'immigration',
+              'information', 'machine', 'mechanic', 'nazism', 'phone', 'privacy', 'racism',
+              'religion', 'robotics', 'sexism', 'technology']
+nyt_corpus = ['NYT', 'NGRAM'][1]
+all_models = [CentroidModel()]
 
-# test_df = []
-# emb_dict,_ = embeddings.load_all(years=years, dir=constant.SGNS_DIR)
-# for year in years:
-#     yr_emb_dict = emb_dict[year]
-#     for i,word in enumerate(test_words):
-#         if word in yr_emb_dict:
-#             test_df.append({constant.YEAR:year,constant.WORD:word,constant.VECTOR:yr_emb_dict[word]})
-# pickle.dump(pd.DataFrame(test_df),open(os.path.join(constant.DATA_DIR, 'words.pkl'), 'wb'))
+# Loading data
+emb_dict_all = None
+if load:
+    emb_dict_all,_ = embeddings.load_all(dir=constant.SGNS_DIR)
+test_df = load_test_df(emb_dict_all=emb_dict_all, reload=load)
+c = CentroidModel()
+reduced_mfd_dict_list = []
+mfd_dict = models.load_mfd_df(emb_dict_all, load)
+mfd_dict_binary = models.load_mfd_df_binary(emb_dict=emb_dict_all, reload=False)
 
-test_df = pickle.load(open(os.path.join(constant.DATA_DIR, 'words.pkl'), 'rb'))
-c = TwoTierCentroidModel()
-mfd_dict = pickle.load(open(constant.MFD_DF, 'rb'))
-reduced_mfd_dict = mfd_dict[mfd_dict[constant.YEAR] == 1990]
-c.fit(reduced_mfd_dict)
-
-for word in test_words:
-    word_df = test_df[test_df[constant.WORD] == word]
-    all_predictions = c.predict_proba(word_df[constant.VECTOR])
-    for cat in mfd_dict[constant.CATEGORY].unique():
-        cat_prediction = [x[cat] for x in all_predictions]
-        if '-' in cat:
-            plt.plot(word_df[constant.YEAR].values, cat_prediction, label=cat, ls='--')
-        else:
-            plt.plot(word_df[constant.YEAR].values, cat_prediction, label=cat)
-    plt.title(word)
-    plt.ylabel('Category Proba')
-    plt.xlabel('Years')
-    plt.legend()
-    plt.savefig(os.path.join(constant.DATA_DIR,word+'.png'))
-    plt.clf()
+# Generate each plot
+hsv = plt.get_cmap('nipy_spectral')
+reduced_mfd_dict = mfd_dict[mfd_dict[constant.YEAR] == mfd_year]
+reduced_mfd_dict_binary = mfd_dict_binary[mfd_dict_binary[constant.YEAR] == mfd_year]
+for c in all_models:
+    for i,word in enumerate(test_words):
+        if 'FINEGRAINED' in binary_fine_grained:
+            c.fit(reduced_mfd_dict)
+            word_df = test_df[test_df[constant.WORD] == word]
+            all_predictions = c.predict_proba(word_df[constant.VECTOR])
+            for cat in mfd_dict[constant.CATEGORY].unique():
+                cat_prediction = [x[cat] for x in all_predictions]
+                if '-' in cat:
+                    plt.plot(word_df[constant.YEAR].values, cat_prediction, label=cat, ls='--', color=constant.get_colour(cat))
+                else:
+                    plt.plot(word_df[constant.YEAR].values, cat_prediction, label=cat, color=constant.get_colour(cat))
+        if 'BINARY' in binary_fine_grained:
+            c.fit(reduced_mfd_dict_binary)
+            word_df = test_df[test_df[constant.WORD] == word]
+            all_predictions = c.predict_proba(word_df[constant.VECTOR])
+            cat_prediction = [x['+'] for x in all_predictions]
+            plt.title('{} {} Plot'.format(word, c.name))
+            plt.ylabel('Category Score')
+            plt.xlabel('Years')
+            if plot_separate:
+                plt.plot(word_df[constant.YEAR].values, cat_prediction, label='Moral Polarity', linewidth=2.0)
+                plt.legend()
+                plt.ylim(0.42,0.58)
+                plt.hlines(0.5, min(word_df[constant.YEAR].values), max(word_df[constant.YEAR].values), colors='grey')
+                plt.savefig(os.path.join(constant.TEMP_DATA_DIR,'images','binaryseparate',word+'.png'))
+                plt.clf()
+            else:
+                plt.plot(word_df[constant.YEAR].values, cat_prediction, label=word, linewidth=2.0, color=hsv(float(i)/(len(test_words)-1)))
+                plt.legend()
+        if not plot_separate:
+            plt.hlines(0.5, min(test_df[constant.YEAR].values), max(test_df[constant.YEAR].values), colors='grey')
+            plt.savefig(os.path.join(constant.TEMP_DATA_DIR,'images','all_words.png'))
 
     
