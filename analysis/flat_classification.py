@@ -119,6 +119,9 @@ for year in years:
               { 'name'     : 'polarity',
                 'split_fn' : seeds.split_pos_neg } ]
 
+    # TODO temporary.
+    tests = [tests[1]]
+
     for test in tests:
         print("Running test '%s'" % test['name'])
         class_labels, words_per_class = test['split_fn'](curr_seeds)

@@ -12,6 +12,7 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.cluster import KMeans
 from sklearn.mixture import GaussianMixture
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from scipy.stats import norm
 
 

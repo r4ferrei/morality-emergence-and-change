@@ -92,7 +92,7 @@ class ExemplarModel(nn.Module):
 
         super().__init__()
         self.kernel_width = nn.Parameter(
-                torch.tensor([.1], dtype=torch.float64, device=DEVICE))
+                torch.tensor([.15], dtype=torch.float64, device=DEVICE))
         self.metric = metric
 
     def probe_to_mat_dist(self, probe, emb_mat):
@@ -404,6 +404,112 @@ def centroid_loo_classification(emb_mats, words_per_class,
             })
 
     #persist_fda_cache()
+
+    print("acc: {}".format(num_correct / len(dataset)))
+
+    return pd.DataFrame(results)
+
+def matrix_centroid(emb_mat):
+    return torch.mean(emb_mat, dim=0)
+
+def probe_to_centroids_activations(probe, centroids):
+    probe_repeated = probe.repeat(len(centroids), 1)
+    dists = F.pairwise_distance(probe_repeated, centroids)
+    assert(len(dists.shape) == 1)
+
+    return torch.exp(-dists)
+
+def centroid_tiered(emb_mats, words_per_class, pos_cats, neg_cats):
+    dataset = build_loo_classification_dataset(emb_mats, words_per_class)
+
+    num_correct = 0
+
+    results = []
+
+    for instance in dataset:
+        # Embedding matrices for each category belonging to each polarity.
+        pos_cat_mats = []
+        neg_cat_mats = []
+
+        for i, emb_mat in enumerate(instance['emb_mats']):
+            if i in pos_cats:
+                pos_cat_mats.append(emb_mat)
+            elif i in neg_cats:
+                neg_cat_mats.append(emb_mat)
+            else:
+                assert(False)
+
+        # Embedding matrices for each polarity.
+        pos_mat = torch.cat(pos_cat_mats)
+        neg_mat = torch.cat(neg_cat_mats)
+
+        pos_centroid = matrix_centroid(pos_mat)
+        neg_centroid = matrix_centroid(neg_mat)
+
+        pos_cat_centroids = [matrix_centroid(e) for e in pos_cat_mats]
+        neg_cat_centroids = [matrix_centroid(e) for e in neg_cat_mats]
+
+        all_centroids = (
+                [pos_centroid, neg_centroid] +
+                pos_cat_centroids + neg_cat_centroids
+                )
+        all_centroids = torch.stack(all_centroids)
+        all_acts = probe_to_centroids_activations(
+                instance['probe'], all_centroids)
+
+        index = 0
+
+        pos_act = all_acts[index]
+        index += 1
+
+        neg_act = all_acts[index]
+        index += 1
+
+        pos_acts = []
+        for i in range(index, index+len(pos_cat_centroids)):
+            pos_acts.append(all_acts[i])
+        index += len(pos_cat_centroids)
+
+        neg_acts = []
+        for i in range(index, index+len(neg_cat_centroids)):
+            neg_acts.append(all_acts[i])
+        index += len(neg_cat_centroids)
+
+        assert(index == len(all_acts))
+
+        class_probs = [float('nan')] * (len(pos_cats) + len(neg_cats))
+
+        top_norm_factor = pos_act + neg_act
+        pos_norm_factor = sum(pos_acts)
+        neg_norm_factor = sum(neg_acts)
+
+        for cat in pos_cats + neg_cats:
+            if cat in pos_cats:
+                class_probs[cat] = (
+                        pos_act / top_norm_factor *
+                        pos_acts[pos_cats.index(cat)] / pos_norm_factor
+                        )
+            else:
+                class_probs[cat] = (
+                        neg_act / top_norm_factor *
+                        neg_acts[neg_cats.index(cat)] / neg_norm_factor
+                        )
+
+        best_prob = -1
+        best_class = -1
+        for i in range(len(class_probs)):
+            assert(not np.isnan(class_probs[i]))
+            if class_probs[i] > best_prob:
+                best_prob = class_probs[i]
+                best_class = i
+
+        num_correct += (best_class == instance['class'])
+
+        results.append({
+            'instance'        : str(instance['probe_str']),
+            'true_class'      : instance['class'],
+            'predicted_class' : best_class
+            })
 
     print("acc: {}".format(num_correct / len(dataset)))
 
