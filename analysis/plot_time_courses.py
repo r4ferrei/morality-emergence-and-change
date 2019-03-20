@@ -21,8 +21,8 @@ def load_test_df(emb_dict_all=None, reload=False):
     return pickle.load(open(os.path.join(constant.TEMP_DATA_DIR, 'words.pkl'), 'rb'))
 
 # Params
-binary_fine_grained = np.array(['BINARY', 'FINEGRAINED'])[[True, False]]
-plot_separate = False
+binary_fine_grained = np.array(['BINARY', 'FINEGRAINED'])[[False, True]]
+plot_separate = True
 mfd_year = 1990
 load = False
 years = constant.ALL_YEARS
@@ -56,9 +56,14 @@ for c in all_models:
             for cat in mfd_dict[constant.CATEGORY].unique():
                 cat_prediction = [x[cat] for x in all_predictions]
                 if '-' in cat:
-                    plt.plot(word_df[constant.YEAR].values, cat_prediction, label=cat, ls='--', color=constant.get_colour(cat))
+                    plt.plot(np.multiply(-1, word_df[constant.YEAR].values, cat_prediction, label=cat, ls='--', color=constant.get_colour(cat))
                 else:
                     plt.plot(word_df[constant.YEAR].values, cat_prediction, label=cat, color=constant.get_colour(cat))
+            plt.legend()
+            plt.ylim(0.08,0.13)
+            plt.hlines(0.5, min(word_df[constant.YEAR].values), max(word_df[constant.YEAR].values), colors='grey')
+            plt.savefig(os.path.join(constant.TEMP_DATA_DIR,'images','category',word+'.png'))
+            plt.clf()
         if 'BINARY' in binary_fine_grained:
             c.fit(reduced_mfd_dict_binary)
             word_df = test_df[test_df[constant.WORD] == word]
@@ -77,8 +82,9 @@ for c in all_models:
             else:
                 plt.plot(word_df[constant.YEAR].values, cat_prediction, label=word, linewidth=2.0, color=hsv(float(i)/(len(test_words)-1)))
                 plt.legend()
-        if not plot_separate:
-            plt.hlines(0.5, min(test_df[constant.YEAR].values), max(test_df[constant.YEAR].values), colors='grey')
-            plt.savefig(os.path.join(constant.TEMP_DATA_DIR,'images','all_words.png'))
+    if not plot_separate:
+        plt.hlines(0.5, min(test_df[constant.YEAR].values), max(test_df[constant.YEAR].values), colors='grey')
+        plt.show()
+        plt.savefig(os.path.join(constant.TEMP_DATA_DIR,'images','all_words.png'))
 
     
