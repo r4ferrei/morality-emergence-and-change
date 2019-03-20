@@ -58,6 +58,37 @@ class BaseModel():
             d[i+1] = x
         return d
 
+    def fit_bootstrap(self, mfd_dict, n=1000):
+        assert n > 0
+        self.fit(mfd_dict)
+        self.bootstrap_refs = []
+        for i in range(n):
+            resample_mfd_dict = mfd_dict.sample(n, replace=True)
+            self.bootstrap_refs.append(resample_mfd_dict)
+
+    def predict_proba_bootstrap(self, word_vectors):
+        assert hasattr(self, 'bootstrap_refs')
+        categories = self.bootstrap_refs[0][constant.CATEGORY].unique()
+        mean_predictions = self.predict_proba(word_vectors)
+        cons_predictions = []
+        for resample_mfd_dict in self.bootstrap_refs:
+            self.fit(resample_mfd_dict)
+            all_predictions = self.predict_proba(word_vectors)
+            cons_predictions.append(all_predictions)
+        lower_bound = []
+        upper_bound = []
+        for i,year in enumerate(word_vectors):
+            year_predictions = [x[i] for x in cons_predictions]
+            l_entry, u_entry = {}, {}
+            n = len(cons_predictions)
+            for cat in categories:
+                cat_predictions = sorted([x[cat] for x in year_predictions])
+                l_entry[cat] = cat_predictions[int(n*0.05)]
+                u_entry[cat] = cat_predictions[int(n*0.95)]
+            lower_bound.append(l_entry)
+            upper_bound.append(u_entry)
+        return mean_predictions, lower_bound, upper_bound
+
     def fit(self, df):
         raise NotImplementedError
     

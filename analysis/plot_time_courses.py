@@ -20,9 +20,27 @@ def load_test_df(emb_dict_all=None, reload=False):
         pickle.dump(pd.DataFrame(test_df),open(os.path.join(constant.TEMP_DATA_DIR, 'words.pkl'), 'wb'))
     return pickle.load(open(os.path.join(constant.TEMP_DATA_DIR, 'words.pkl'), 'rb'))
 
+def bootstrap(model, word_df, mfd_dict, n=1000):
+    categories = mfd_dict[constant.CATEGORY].unique()
+    cons_predictions = []
+    model.fit(mfd_dict)
+    mean_predictions = model.predict_proba(word_df[constant.VECTOR])
+    for i in range(n):
+        resample_mfd_dict = mfd_dict.sample(n)
+        model.fit(resample_mfd_dict)
+        all_predictions = c.predict_proba(word_df[constant.VECTOR])
+        cons_predictions.append(all_predictions)
+    lower_bound = []
+    upper_bound = []
+    for i,year in word_df[constant.YEAR].values:
+        year_predictions = [x[i] for x in cons_predictions]
+        lower_bound.append({cat: min([x[cat] for x in year_predictions]) for cat in categories})
+        upper_bound.append({cat: max([x[cat] for x in year_predictions]) for cat in categories})
+    return mean_predictions, lower_bound, upper_bound
+
 # Params
 binary_fine_grained = np.array(['BINARY', 'FINEGRAINED'])[[False, True]]
-plot_separate = True
+plot_separate = True # Only has effect in the binary case
 mfd_year = 1990
 load = False
 years = constant.ALL_YEARS
@@ -48,15 +66,20 @@ hsv = plt.get_cmap('nipy_spectral')
 reduced_mfd_dict = mfd_dict[mfd_dict[constant.YEAR] == mfd_year]
 reduced_mfd_dict_binary = mfd_dict_binary[mfd_dict_binary[constant.YEAR] == mfd_year]
 for c in all_models:
+    if 'FINEGRAINED' in binary_fine_grained:
+        c.fit_bootstrap(reduced_mfd_dict)
+    else:
+        c.fit_bootstrap(reduced_mfd_dict_binary)
     for i,word in enumerate(test_words):
         if 'FINEGRAINED' in binary_fine_grained:
-            c.fit(reduced_mfd_dict)
             word_df = test_df[test_df[constant.WORD] == word]
+            mean, lower_bound, upper_bound = c.predict_proba_bootstrap(word_df[constant.VECTOR].values)
+            c.fit(reduced_mfd_dict)
             all_predictions = c.predict_proba(word_df[constant.VECTOR])
             for cat in mfd_dict[constant.CATEGORY].unique():
                 cat_prediction = [x[cat] for x in all_predictions]
                 if '-' in cat:
-                    plt.plot(np.multiply(-1, word_df[constant.YEAR].values, cat_prediction, label=cat, ls='--', color=constant.get_colour(cat))
+                    plt.plot(word_df[constant.YEAR].values, cat_prediction, label=cat, ls='--', color=constant.get_colour(cat))
                 else:
                     plt.plot(word_df[constant.YEAR].values, cat_prediction, label=cat, color=constant.get_colour(cat))
             plt.legend()
@@ -64,7 +87,7 @@ for c in all_models:
             plt.hlines(0.5, min(word_df[constant.YEAR].values), max(word_df[constant.YEAR].values), colors='grey')
             plt.savefig(os.path.join(constant.TEMP_DATA_DIR,'images','category',word+'.png'))
             plt.clf()
-        if 'BINARY' in binary_fine_grained:
+        else:
             c.fit(reduced_mfd_dict_binary)
             word_df = test_df[test_df[constant.WORD] == word]
             all_predictions = c.predict_proba(word_df[constant.VECTOR])
@@ -77,6 +100,7 @@ for c in all_models:
                 plt.legend()
                 plt.ylim(0.42,0.58)
                 plt.hlines(0.5, min(word_df[constant.YEAR].values), max(word_df[constant.YEAR].values), colors='grey')
+                plt.title('{} {}'.format(c.name, word))
                 plt.savefig(os.path.join(constant.TEMP_DATA_DIR,'images','binaryseparate',word+'.png'))
                 plt.clf()
             else:
