@@ -78,10 +78,10 @@ def load_wvs_df_predictions(embedding_style, mfd_dict=None, wvs_df=None, emb_dic
                         if pred is not None:
                             for model in all_models:
                                 model.fit(mfd_dict[mfd_dict[constant.YEAR] == int(round_year)])
-                                entry[model.name] = model.predict_proba([pred])[0]['+']
+                                prediction = model.predict_proba([pred])[0]
+                                entry[model.name] = models.log_odds(prediction['+'], prediction['-'])
                         al.append(entry)
         df = pd.DataFrame(al)
-        df.drop_duplicates()
         df.to_csv(os.path.join('reports', 'world_values.csv'), index=False)
     df = pd.read_csv(os.path.join('reports', 'world_values.csv'),index_col=False)
     return df
@@ -99,9 +99,9 @@ def make_consolidated_df(df):
                 preds = [preds[i] for i in range(len(not_nan)) if not_nan[i]]
                 scores2 = [scores[i] for i in range(len(not_nan)) if not_nan[i]]
                 rho,_ = spearmanr(scores2, preds)
-                entry['%s Spearman' % col] = '%.2f' % rho
+                entry['%s Spearman' % col] = '%.4f' % rho
                 rho,_ = pearsonr(scores2, preds)
-                entry['%s Pearson' % col] = '%.2f' % rho
+                entry['%s Pearson' % col] = '%.4f' % rho
         alll.append(entry)
     df = pd.DataFrame(alll).to_csv(os.path.join('reports', 'consolidated_world_values.csv'), index=False)
     return df
@@ -138,9 +138,9 @@ def correlate_words(df, all_models):
             al_df.append({
                 'model': model.name,
                 'concept': concept,
-                'Pearson':pearsonr(list(concept_df[model.name].values), list(concept_df[constant.SCORE].values))[0],
-                'Spearman': spearmanr(list(concept_df[model.name].values), list(concept_df[constant.SCORE].values))[0]})
-    pd.DataFrame(al_df).to_csv('world_values_concept.csv', index=False)
+                'Pearson':'%.4f' % pearsonr(list(concept_df[model.name].values), list(concept_df[constant.SCORE].values))[0],
+                'Spearman':'%.4f' % spearmanr(list(concept_df[model.name].values), list(concept_df[constant.SCORE].values))[0]})
+    pd.DataFrame(al_df).to_csv(os.path.join(constant.DATA_DIR, 'world_values_concept.csv'), index=False)
 
 all_models = [models.CentroidModel(), models.KNNModel(k=16)]
 load = True

@@ -5,6 +5,7 @@ import constant
 import embeddings
 import pickle
 import os
+import math
 from sklearn.neighbors import KNeighborsClassifier
 from scipy.spatial.distance import cosine
 from sklearn.naive_bayes import GaussianNB
@@ -42,6 +43,9 @@ def load_mfd_df_binary(emb_dict=None, reload=False):
     mfd_dict = load_mfd_df(emb_dict, reload)
     mfd_dict[constant.CATEGORY] = ['+' if '+' in x else '-' for x in mfd_dict[constant.CATEGORY].values]
     return mfd_dict
+
+def log_odds(pos_prob, neg_prob):
+    return math.log(pos_prob/neg_prob)
 
 class BaseModel():
     '''
