@@ -72,30 +72,37 @@ for c in all_models:
     else:
         c.fit_bootstrap(reduced_mfd_dict_binary)
     for i,word in enumerate(test_words):
+
         word_df = test_df[test_df[constant.WORD] == word]
+        years = word_df[constant.YEAR].values
+        mean_line, lower_bound, upper_bound = c.predict_proba_bootstrap(word_df[constant.VECTOR].values)
+
         if 'FINEGRAINED' in binary_fine_grained:
-            mean, lower_bound, upper_bound = c.predict_proba_bootstrap(word_df[constant.VECTOR].values)
-            all_predictions = mean
+            f = plt.figure(figsize=(15,10))
+            ax1 = f.add_axes([0.1, 0.5, 0.8, 0.4], title = word,
+                   xticklabels=[], ylim=[0.1,0.13], ylabel='Positive Probability')
+            ax2 = f.add_axes([0.1, 0.1, 0.8, 0.4], ylabel = 'Negative Probability',
+                   ylim=[0.13,0.1], xlabel='Years')
             for cat in mfd_dict[constant.CATEGORY].unique():
-                cat_prediction = [x[cat] for x in all_predictions]
-                cat_prediction_l = [x[cat] for x in lower_bound]
-                cat_prediction_u = [x[cat] for x in upper_bound]
+                color = constant.get_colour(cat)
+                cat_prediction,cat_prediction_l,cat_prediction_u\
+                    = [x[cat] for x in mean_line],[x[cat] for x in lower_bound],[x[cat] for x in upper_bound]
                 if '-' in cat:
-                    plt.plot(word_df[constant.YEAR].values, cat_prediction, label=cat, ls='--', color=constant.get_colour(cat))
+                    # cat_prediction_l,cat_prediction_u = cat_prediction_l, \
+                    #                                     cat_prediction_u
+                    ax2.plot(years, cat_prediction, label=cat[:-1], ls='--', color=color)
+                    ax = ax2
                 else:
-                    plt.plot(word_df[constant.YEAR].values, cat_prediction, label=cat, color=constant.get_colour(cat))
-                plt.fill_between(word_df[constant.YEAR].values, cat_prediction_l, cat_prediction_u, color=constant.get_colour(cat), alpha=0.2)
-            plt.legend()
-            plt.ylim(0.08,0.13)
-            plt.hlines(0.5, min(word_df[constant.YEAR].values), max(word_df[constant.YEAR].values), colors='grey')
+                    ax1.plot(years, cat_prediction, label=cat, color=color)
+                    ax = ax1
+                ax.fill_between(years,cat_prediction_l,cat_prediction_u,color=color,alpha=0.2)
+            ax1.legend(loc='upper right')
+                # ax.hlines(0.1, min(word_df[constant.YEAR].values), max(word_df[constant.YEAR].values), colors='grey')
             plt.savefig(os.path.join(constant.TEMP_DATA_DIR,'images','category',word+'.png'))
             plt.clf()
         else:
-            mean, lower_bound, upper_bound = c.predict_proba_bootstrap(word_df[constant.VECTOR].values)
-            all_predictions = mean
-            cat_prediction = [x['+'] for x in all_predictions]
-            cat_prediction_l = [x['+'] for x in lower_bound]
-            cat_prediction_u = [x['+'] for x in upper_bound]
+            cat_prediction,cat_prediction_l,cat_prediction_u\
+                    = [x['+'] for x in mean_line],[x['+'] for x in lower_bound],[x['+'] for x in upper_bound]
             plt.title('{} {} Plot'.format(word, c.name))
             plt.ylabel('Category Score')
             plt.xlabel('Years')
