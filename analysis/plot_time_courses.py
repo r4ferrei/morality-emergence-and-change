@@ -42,12 +42,13 @@ def bootstrap(model, word_df, mfd_dict, n=1000):
 binary_fine_grained = np.array(['BINARY', 'FINEGRAINED'])[[False, True]]
 plot_separate = True # Only has effect in the binary case
 mfd_year = 1990
-load = False
+load = True
 years = constant.ALL_YEARS
-test_words = ['slavery', 'feminism', 'racism', 'abortion', 'automation', 'computer', 'diversity',
-              'education', 'electric', 'engineer', 'environment', 'feminism', 'immigration',
-              'information', 'machine', 'mechanic', 'nazism', 'phone', 'privacy', 'racism',
-              'religion', 'robotics', 'sexism', 'technology']
+test_words = ['slavery', 'feminism', 'racism']
+# test_words = ['slavery', 'feminism', 'racism', 'abortion', 'automation', 'computer', 'diversity',
+#               'education', 'electric', 'engineer', 'environment', 'feminism', 'immigration',
+#               'information', 'machine', 'mechanic', 'nazism', 'phone', 'privacy', 'racism',
+#               'religion', 'robotics', 'sexism', 'technology']
 nyt_corpus = ['NYT', 'NGRAM'][1]
 all_models = [CentroidModel()]
 
@@ -71,34 +72,38 @@ for c in all_models:
     else:
         c.fit_bootstrap(reduced_mfd_dict_binary)
     for i,word in enumerate(test_words):
+        word_df = test_df[test_df[constant.WORD] == word]
         if 'FINEGRAINED' in binary_fine_grained:
-            word_df = test_df[test_df[constant.WORD] == word]
             mean, lower_bound, upper_bound = c.predict_proba_bootstrap(word_df[constant.VECTOR].values)
-            c.fit(reduced_mfd_dict)
-            all_predictions = c.predict_proba(word_df[constant.VECTOR])
+            all_predictions = mean
             for cat in mfd_dict[constant.CATEGORY].unique():
                 cat_prediction = [x[cat] for x in all_predictions]
+                cat_prediction_l = [x[cat] for x in lower_bound]
+                cat_prediction_u = [x[cat] for x in upper_bound]
                 if '-' in cat:
                     plt.plot(word_df[constant.YEAR].values, cat_prediction, label=cat, ls='--', color=constant.get_colour(cat))
                 else:
                     plt.plot(word_df[constant.YEAR].values, cat_prediction, label=cat, color=constant.get_colour(cat))
+                plt.fill_between(word_df[constant.YEAR].values, cat_prediction_l, cat_prediction_u, color=constant.get_colour(cat), alpha=0.2)
             plt.legend()
             plt.ylim(0.08,0.13)
             plt.hlines(0.5, min(word_df[constant.YEAR].values), max(word_df[constant.YEAR].values), colors='grey')
             plt.savefig(os.path.join(constant.TEMP_DATA_DIR,'images','category',word+'.png'))
             plt.clf()
         else:
-            c.fit(reduced_mfd_dict_binary)
-            word_df = test_df[test_df[constant.WORD] == word]
-            all_predictions = c.predict_proba(word_df[constant.VECTOR])
+            mean, lower_bound, upper_bound = c.predict_proba_bootstrap(word_df[constant.VECTOR].values)
+            all_predictions = mean
             cat_prediction = [x['+'] for x in all_predictions]
+            cat_prediction_l = [x['+'] for x in lower_bound]
+            cat_prediction_u = [x['+'] for x in upper_bound]
             plt.title('{} {} Plot'.format(word, c.name))
             plt.ylabel('Category Score')
             plt.xlabel('Years')
             if plot_separate:
                 plt.plot(word_df[constant.YEAR].values, cat_prediction, label='Moral Polarity', linewidth=2.0)
+                plt.fill_between(word_df[constant.YEAR].values, cat_prediction_l, cat_prediction_u, alpha=0.2)
                 plt.legend()
-                plt.ylim(0.42,0.58)
+                plt.ylim(0.45,0.55)
                 plt.hlines(0.5, min(word_df[constant.YEAR].values), max(word_df[constant.YEAR].values), colors='grey')
                 plt.title('{} {}'.format(c.name, word))
                 plt.savefig(os.path.join(constant.TEMP_DATA_DIR,'images','binaryseparate',word+'.png'))
