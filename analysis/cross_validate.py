@@ -11,17 +11,14 @@ loo = LeaveOneOut()
 # emb_dict_all,vocab = embeddings.load_all(dir='E:/sgns')
 # mfd_dict = models.load_mfd_df(emb_dict_all)
 mfd_dict = pickle.load(open(constant.MFD_DF, 'rb'))
-all_models = [models.CentroidModel(),
-    models.KNNModel(),
-    models.NBModel(),
-    models.TwoTierCentroidModel(models.CentroidModel(),models.CentroidModel(),models.CentroidModel()), 
-    models.TwoTierCentroidModel(models.KNNModel(k=16),models.CentroidModel(),models.CentroidModel())]
+all_models = [models.TSNECentroidModel()]
 
 for model in all_models:
     all_years = []
     preds = []
     truth = []
-    for year in mfd_dict[constant.YEAR].unique():
+    # for year in mfd_dict[constant.YEAR].unique():
+    for year in [1990]:
         acc = 0
         mfd_dict_red = mfd_dict[mfd_dict[constant.YEAR] == year]
         mfd_dict_red = mfd_dict_red.reset_index(drop=True)
