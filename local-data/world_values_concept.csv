@@ -1,0 +1,31 @@
+Pearson,Spearman,concept,model
+nan,nan,Parents beating children,Centroid
+nan,nan,Sex before marriage,Centroid
+nan,nan,Stealing property,Centroid
+nan,nan,Violence against other people,Centroid
+-1.0000,-1.0000,abortion,Centroid
+1.0000,1.0000,avoiding a fare on public transport,Centroid
+-1.0000,-1.0000,buy stolen goods,Centroid
+1.0000,1.0000,cheating on taxes,Centroid
+-1.0000,-1.0000,claiming government benefits,Centroid
+-1.0000,-1.0000,divorce,Centroid
+1.0000,1.0000,euthanasia,Centroid
+1.0000,1.0000,homosexuality,Centroid
+-1.0000,-1.0000,prostitution,Centroid
+1.0000,1.0000,someone accepting a bribe,Centroid
+1.0000,1.0000,suicide,Centroid
+nan,nan,Parents beating children,kNN Model
+nan,nan,Sex before marriage,kNN Model
+nan,nan,Stealing property,kNN Model
+nan,nan,Violence against other people,kNN Model
+-1.0000,-1.0000,abortion,kNN Model
+1.0000,1.0000,avoiding a fare on public transport,kNN Model
+-1.0000,-1.0000,buy stolen goods,kNN Model
+-1.0000,-1.0000,cheating on taxes,kNN Model
+1.0000,1.0000,claiming government benefits,kNN Model
+1.0000,1.0000,divorce,kNN Model
+1.0000,1.0000,euthanasia,kNN Model
+1.0000,1.0000,homosexuality,kNN Model
+1.0000,1.0000,prostitution,kNN Model
+1.0000,1.0000,someone accepting a bribe,kNN Model
+1.0000,1.0000,suicide,kNN Model

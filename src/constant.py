@@ -8,9 +8,9 @@ def get_colour(category_name):
     base_cats = ['care', 'fairness', 'loyalty', 'authority', 'sanctity']
     return cmap(base_cats.index(base_cat))
 
-TEMP_DATA_DIR = 'C:/Users/jexie/Documents/Work/morality-renato/morality-emergence-and-change/data'
-DATA_DIR = 'C:/Users/jexie/Documents/Work/morality-renato/morality-emergence-and-change/local-data'
-SGNS_DIR = 'C:/Users/jexie/Documents/Work/morality/sgns'
+TEMP_DATA_DIR = 'data'
+DATA_DIR = 'local-data'
+SGNS_DIR = 'E:/sgns'
 
 DICTIONARY_PATH = os.path.join(DATA_DIR, 'dictionary.txt')
 MFD_DF = os.path.join(DATA_DIR, 'mfd_dic.pkl')

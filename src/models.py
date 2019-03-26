@@ -4,7 +4,9 @@ import seeds
 import constant
 import embeddings
 import pickle
+from sklearn.manifold import TSNE
 import os
+import math
 from sklearn.neighbors import KNeighborsClassifier
 from scipy.spatial.distance import cosine
 from sklearn.naive_bayes import GaussianNB
@@ -13,6 +15,7 @@ from sklearn.cluster import KMeans
 from sklearn.mixture import GaussianMixture
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from scipy.stats import norm
+from sklearn.decomposition import PCA, LatentDirichletAllocation, TruncatedSVD
 
 
 def load_mfd_df(emb_dict=None, reload=False):
@@ -44,6 +47,9 @@ def load_mfd_df_binary(emb_dict=None, reload=False):
     mfd_dict[constant.CATEGORY] = ['+' if '+' in x else '-' for x in mfd_dict[constant.CATEGORY].values]
     return mfd_dict
 
+def log_odds(pos_prob, neg_prob):
+    return math.log(pos_prob/neg_prob)
+
 class BaseModel():
     '''
     Base Model
@@ -53,6 +59,37 @@ class BaseModel():
         for i,x in enumerate(proba_arr):
             d[i+1] = x
         return d
+
+    def fit_bootstrap(self, mfd_dict, n=1000):
+        assert n > 0
+        self.fit(mfd_dict)
+        self.bootstrap_refs = []
+        for i in range(n):
+            resample_mfd_dict = mfd_dict.sample(n, replace=True)
+            self.bootstrap_refs.append(resample_mfd_dict)
+
+    def predict_proba_bootstrap(self, word_vectors):
+        assert hasattr(self, 'bootstrap_refs')
+        categories = self.bootstrap_refs[0][constant.CATEGORY].unique()
+        mean_predictions = self.predict_proba(word_vectors)
+        cons_predictions = []
+        for resample_mfd_dict in self.bootstrap_refs:
+            self.fit(resample_mfd_dict)
+            all_predictions = self.predict_proba(word_vectors)
+            cons_predictions.append(all_predictions)
+        lower_bound = []
+        upper_bound = []
+        for i,year in enumerate(word_vectors):
+            year_predictions = [x[i] for x in cons_predictions]
+            l_entry, u_entry = {}, {}
+            n = len(cons_predictions)
+            for cat in categories:
+                cat_predictions = sorted([x[cat] for x in year_predictions])
+                l_entry[cat] = cat_predictions[int(n*0.05)]
+                u_entry[cat] = cat_predictions[int(n*0.95)]
+            lower_bound.append(l_entry)
+            upper_bound.append(u_entry)
+        return mean_predictions, lower_bound, upper_bound
 
     def fit(self, df):
         raise NotImplementedError
@@ -119,21 +156,14 @@ class CentroidModel(BaseModel):
     def predict_proba(self, data):
         result = []
         for d in data:
-            distances = {k: cosine_similarity([d],[v])[0][0] for k, v in self.mean_vectors.items()}
+            distances = {k: -np.linalg.norm(d-v) for k, v in self.mean_vectors.items()}
+            # distances = {k: cosine_similarity([d],[v])[0][0] for k, v in self.mean_vectors.items()}
             cat_names = sorted(self.mean_vectors.keys())
             probabilities = self.__calc_prob([distances[k] for k in cat_names])
             x_3 = dict(zip(cat_names, probabilities))
             result.append(x_3)
         assert all(sum(x.values()) > 0.9 for x in result)
         return result
-    
-    # def objective(self, df, x):
-    #     all_categories = list(df[constant.CATEGORY].values)
-    #     self.h = x
-    #     all_predicts = self.predict_proba(list(df[constant.VECTOR].values))
-    #     all_proba = [1-all_predicts[i][all_categories[i]] for i in range(len(df))]
-    #     total_loss = sum(all_proba)
-    #     return total_loss
 
     def fit(self, df):
         self.h = 1
@@ -148,6 +178,48 @@ class CentroidModel(BaseModel):
         for d in probs_data:
             all_guesses.append(max(d.keys(), key=(lambda key: d[key])))
         return all_guesses
+
+class FDACentroidModel(CentroidModel):
+
+    name = 'FDA Centroid'
+
+    def __init__(self, n_components):
+        self.n_components = n_components
+
+    def fit(self, df):
+        self.f = TruncatedSVD(n_components=self.n_components)
+        new_df = df.copy()
+        self.original_size = len(df[constant.VECTOR].values.tolist()[0])
+        new_df[constant.VECTOR] = [np.array(x) for x in
+                               self.f.fit_transform(new_df[constant.VECTOR].values.tolist(),
+                                                    new_df[constant.CATEGORY].values.tolist())]
+        super(FDACentroidModel, self).fit(new_df)
+
+    def predict_proba(self, data):
+        data_t = self.f.transform(data)
+        return super(FDACentroidModel, self).predict_proba(data_t)
+
+class TSNECentroidModel(CentroidModel):
+
+    name = 'FDA Centroid'
+
+    def fit(self, df):
+        self.f = LinearDiscriminantAnalysis(solver='eigen', shrinkage=0.5)
+        new_df = df.copy()
+        self.original_size = len(df[constant.VECTOR].values.tolist()[0])
+        new_df[constant.VECTOR] = [np.array(x) for x in
+                               self.f.fit_transform(new_df[constant.VECTOR].values.tolist(),
+                                                    new_df[constant.CATEGORY].values.tolist())]
+        self.df = new_df
+
+    def predict_proba(self,data):
+        t = TSNE()
+        data_f = self.f.transform(data)
+        x_transform = t.fit_transform(np.concatenate((self.df[constant.VECTOR].values.tolist(),data_f)))
+        self.df[constant.VECTOR] = [np.array(x) for x in x_transform[:self.df.shape[0]]]
+        data_t = [np.array(x) for x in x_transform[self.df.shape[0]:]]
+        CentroidModel.fit(self, self.df)
+        return super(TSNECentroidModel, self).predict_proba(data_t)
 
 class TwoTierCentroidModel():
     '''

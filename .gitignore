@@ -4,5 +4,6 @@
 __pycache__
 .nfs*
 *.log
+*.pkl
 .vscode/
 .idea/
