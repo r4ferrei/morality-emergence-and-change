@@ -326,7 +326,9 @@ def kernel_loo_classification(emb_mats, words_per_class,
 #        pickle.dump(fda_cache, f)
 
 def cached_fit_fda(X, y):
-    fda = LinearDiscriminantAnalysis(solver='eigen', shrinkage=.5)
+    fda = LinearDiscriminantAnalysis(solver='eigen', shrinkage=.5,
+            n_components=9)
+            #n_components=10)
     fda.fit(X, y)
     return fda
 
@@ -363,6 +365,10 @@ def centroid_loo_classification(emb_mats, words_per_class,
             for word, vec in zip(words, emb_mat):
                 if word == probe_str_to_block:
                     found_probe = True
+
+                    # TODO wrong, just for testing!
+                    #X.append(vec)
+                    #y.append(i)
                 else:
                     X.append(vec)
                     y.append(i)

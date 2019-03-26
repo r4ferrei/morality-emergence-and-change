@@ -121,7 +121,8 @@ for year in years:
         assert(False)
 
     if FDA:
-        _, all_seeds = seeds.split_11_categories(curr_seeds)
+        #_, all_seeds = seeds.split_11_categories(curr_seeds)
+        _, all_seeds = seeds.split_10_categories(curr_seeds)
 
     tests = [ { 'name'     : 'categorization',
                 'split_fn' : seeds.split_10_categories },
@@ -129,6 +130,11 @@ for year in years:
                 'split_fn' : seeds.split_neutral_moral },
               { 'name'     : 'polarity',
                 'split_fn' : seeds.split_pos_neg } ]
+
+    if FDA:
+        tests = [ { 'name'     : 'categorization',
+                    'split_fn' : seeds.split_10_categories }
+                    ]
 
     for test in tests:
         print("Running test '%s'" % test['name'])
