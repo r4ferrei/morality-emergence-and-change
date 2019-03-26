@@ -84,15 +84,16 @@ class ExemplarModel(nn.Module):
         - [B, C] tensor of unnormalized class likelihoods.
     '''
 
-    def __init__(self, metric='l2'):
+    def __init__(self, metric='l2', width=.15):
         '''
         Args:
             metric: metric of vector distance, one of 'l2' or 'cosine'
+            width: initial kernel width value.
         '''
 
         super().__init__()
         self.kernel_width = nn.Parameter(
-                torch.tensor([.15], dtype=torch.float64, device=DEVICE))
+                torch.tensor([width], dtype=torch.float64, device=DEVICE))
         self.metric = metric
 
     def probe_to_mat_dist(self, probe, emb_mat):
@@ -243,7 +244,8 @@ def train_model(dataset, lr=.005, batch_size=64, threshold=1e-6, patience=15,
     return model
 
 def kernel_loo_classification(emb_mats, words_per_class,
-        seeds_for_fda, embs, metric='l2'):
+        seeds_for_fda, embs, metric='l2',
+        kernel_width=None):
     '''
     Given embedding matrices for different categories, train models and return
     leave-one-out model accuracy.
@@ -259,6 +261,8 @@ def kernel_loo_classification(emb_mats, words_per_class,
 
         words_per_class: list of strings for each class, aligned with
         `emb_mats`.
+
+        kernel_width: if given, use pre-trained width for prediction.
 
     Returns: DataFrame with columns 'instance', 'true_class', 'predicted_class',
         and 'kernel_width'.
@@ -279,7 +283,11 @@ def kernel_loo_classification(emb_mats, words_per_class,
         inner_dataset = build_loo_classification_dataset(
                 instance['emb_mats'],
                 instance['words_per_class'])
-        model = train_model(inner_dataset, metric=metric)
+
+        if kernel_width:
+            model = ExemplarModel(metric='l2', width=kernel_width)
+        else:
+            model = train_model(inner_dataset, metric=metric)
 
         lik = model(
                 instance['probe'].unsqueeze(dim=0),

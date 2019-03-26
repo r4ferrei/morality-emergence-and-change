@@ -19,6 +19,7 @@ parser.add_argument('--fda', action='store_true',
 parser.add_argument('--remove-duplicates', action='store_true',
         help="Remove seed words that belong to more than one category.")
 parser.add_argument('--mfd-file', help="Name of MFD file in seeds dir.")
+parser.add_argument('--widths', help="File with pre-trained kernel widths.")
 #parser.add_argument('--k', help="k parameter for kNN classifier.")
 args = parser.parse_args()
 
@@ -42,6 +43,8 @@ REMOVE_DUPLICATES = args.remove_duplicates
 MFD_FILE = args.mfd_file
 assert(MFD_FILE)
 
+WIDTHS = args.widths
+
 print("Loading historical embeddings.")
 hist_embs, vocab = embeddings.load_all()
 
@@ -56,7 +59,14 @@ elif SEEDS == 'varying':
 else:
     assert(False)
 
-def predictions_df(word_lists_per_class, embs, seeds_for_fda):
+if WIDTHS:
+    kernel_widths = pd.read_csv(WIDTHS)
+    kernel_widths = kernel_widths.set_index('test', drop=True)
+    print("Pre-trained kernel widths:")
+    for test in ['categorization', 'null_test', 'polarity']:
+        print("{}: {}".format(test, kernel_widths.loc[test, 'kernel_width']))
+
+def predictions_df(word_lists_per_class, embs, seeds_for_fda, kernel_width):
     emb_mats = [
             embeddings.convert_words_to_embedding_matrix(words, embs)
             for words in word_lists_per_class
@@ -66,7 +76,8 @@ def predictions_df(word_lists_per_class, embs, seeds_for_fda):
         return categorization.kernel_loo_classification(
                 emb_mats, word_lists_per_class,
                 seeds_for_fda=seeds_for_fda,
-                embs = (embs if seeds_for_fda else None))
+                embs = (embs if seeds_for_fda else None),
+                kernel_width = kernel_width)
     elif MODEL == 'centroid':
         return categorization.centroid_loo_classification(
                 emb_mats, word_lists_per_class,
@@ -119,14 +130,15 @@ for year in years:
               { 'name'     : 'polarity',
                 'split_fn' : seeds.split_pos_neg } ]
 
-    # TODO temporary.
-    tests = [tests[1]]
-
     for test in tests:
         print("Running test '%s'" % test['name'])
         class_labels, words_per_class = test['split_fn'](curr_seeds)
         df = predictions_df(words_per_class, hist_embs[year],
-                seeds_for_fda = (all_seeds if FDA else None))
+                seeds_for_fda = (all_seeds if FDA else None),
+                kernel_width = (
+                    kernel_widths.loc[test['name'], 'kernel_width']
+                    if WIDTHS
+                    else None))
 
         apply_class_labels(df, class_labels)
         df['test'] = test['name']
