@@ -7,7 +7,7 @@ import pickle
 from sklearn.manifold import TSNE
 import os
 import math
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neighbors import KNeighborsClassifier, KernelDensity
 from scipy.spatial.distance import cosine
 from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics.pairwise import cosine_similarity
@@ -18,14 +18,14 @@ from scipy.stats import norm
 from sklearn.decomposition import PCA, LatentDirichletAllocation, TruncatedSVD
 
 
-def load_mfd_df(emb_dict=None, reload=False):
+def load_mfd_df(emb_dict=None, reload=False, path=constant.MFD_DF, dups=False):
     '''
     Load the moral foundations dictionary and pull word representations for each seed word.
     Returns a dataframe with the following columns:
     WORD | VECTOR | CATEGORY | YEAR
     '''
     if reload:
-        s = seeds.load(constant.DATA_DIR)
+        s = seeds.load(constant.DATA_DIR, remove_duplicates=dups)
         s_plus = {k+'+':v for k,v in s['+'].items()}
         s_neg = {k+'-':v for k,v in s['-'].items()}
         s_all = {**s_plus, **s_neg}
@@ -38,14 +38,38 @@ def load_mfd_df(emb_dict=None, reload=False):
                         items.append({constant.WORD:word, constant.CATEGORY:cat, 
                         constant.YEAR:year, constant.VECTOR: yr_emb_dict[word]})
         cat_df = pd.DataFrame(items)
-        pickle.dump(cat_df, open(constant.MFD_DF, 'wb'))
+        pickle.dump(cat_df, open(path, 'wb'))
         return cat_df
-    return pickle.load(open(constant.MFD_DF, 'rb'))
+    return pickle.load(open(path, 'rb'))
 
 def load_mfd_df_binary(emb_dict=None, reload=False):
-    mfd_dict = load_mfd_df(emb_dict, reload)
+    mfd_dict = load_mfd_df(emb_dict, reload, path=constant.MFD_DF_BINARY, dups=True)
     mfd_dict[constant.CATEGORY] = ['+' if '+' in x else '-' for x in mfd_dict[constant.CATEGORY].values]
     return mfd_dict
+
+def load_mfd_df_neutral(emb_dict=None, reload=False):
+    '''
+    Load the moral foundations dictionary and pull word representations for each seed word.
+    Returns a dataframe with the following columns:
+    WORD | VECTOR | CATEGORY | YEAR
+    '''
+    if reload:
+        s = seeds.load(constant.DATA_DIR)
+        s_plus = {'0':v for v in s['0']}
+        s_neg = {'1':v for k,v in list(s['+'].items())+list(s['-'].items())}
+        s_all = {**s_plus, **s_neg}
+        items = []
+        for cat in s_all:
+            for word in s_all[cat]:
+                for year in emb_dict.keys():
+                    yr_emb_dict = emb_dict[year]
+                    if word in yr_emb_dict:
+                        items.append({constant.WORD:word, constant.CATEGORY:cat,
+                        constant.YEAR:year, constant.VECTOR: yr_emb_dict[word]})
+        cat_df = pd.DataFrame(items)
+        pickle.dump(cat_df, open(constant.MFD_DF_NEUTRAL, 'wb'))
+        return cat_df
+    return pickle.load(open(constant.MFD_DF_NEUTRAL, 'rb'))
 
 def log_odds(pos_prob, neg_prob):
     return math.log(pos_prob/neg_prob)
@@ -199,27 +223,29 @@ class FDACentroidModel(CentroidModel):
         data_t = self.f.transform(data)
         return super(FDACentroidModel, self).predict_proba(data_t)
 
-class TSNECentroidModel(CentroidModel):
+class KDEModel():
+    h = 0.2640425317597489
 
-    name = 'FDA Centroid'
+    name='kNN Model'
+    def __init__(self, h=15):
+        self.h = h
+        self.c_classifier = KernelDensity(bandwidth=h,kernel='exponential')
 
     def fit(self, df):
-        self.f = LinearDiscriminantAnalysis(solver='eigen', shrinkage=0.5)
-        new_df = df.copy()
-        self.original_size = len(df[constant.VECTOR].values.tolist()[0])
-        new_df[constant.VECTOR] = [np.array(x) for x in
-                               self.f.fit_transform(new_df[constant.VECTOR].values.tolist(),
-                                                    new_df[constant.CATEGORY].values.tolist())]
-        self.df = new_df
+        self.labels = sorted(df[constant.CATEGORY].unique())
+        self.mean_vectors = {}
+        for i in df[constant.CATEGORY].unique():
+            mean_vector = np.mean(list(df[df[constant.CATEGORY] == i][constant.VECTOR].values), axis=0)
+            self.mean_vectors[i] = mean_vector
+        self.c_classifier.fit(list(df[constant.VECTOR].values), list(df[constant.CATEGORY].values))
 
-    def predict_proba(self,data):
-        t = TSNE()
-        data_f = self.f.transform(data)
-        x_transform = t.fit_transform(np.concatenate((self.df[constant.VECTOR].values.tolist(),data_f)))
-        self.df[constant.VECTOR] = [np.array(x) for x in x_transform[:self.df.shape[0]]]
-        data_t = [np.array(x) for x in x_transform[self.df.shape[0]:]]
-        CentroidModel.fit(self, self.df)
-        return super(TSNECentroidModel, self).predict_proba(data_t)
+    def predict(self, data):
+        return self.c_classifier.predict([list(x) for x in data])
+
+    def predict_proba(self, data):
+        all_preds = self.c_classifier.predict_proba([list(x) for x in data])
+        return [dict(zip(self.labels, x)) for x in all_preds]
+
 
 class TwoTierCentroidModel():
     '''
