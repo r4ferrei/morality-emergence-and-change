@@ -4,7 +4,7 @@ import embeddings
 import os
 import pandas as pd
 import models
-from models import CentroidModel,TwoTierCentroidModel
+from models import CentroidModel
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn import preprocessing
@@ -39,12 +39,13 @@ def bootstrap(model, word_df, mfd_dict, n=1000):
     return mean_predictions, lower_bound, upper_bound
 
 # Params
-binary_fine_grained = np.array(['BINARY', 'FINEGRAINED'])[[False, True]]
+binary_fine_grained = np.array(['BINARY', 'FINEGRAINED'])[[True, False]]
 plot_separate = True # Only has effect in the binary case
 mfd_year = 1990
 load = True
 years = constant.ALL_YEARS
-test_words = ['slavery', 'feminism', 'racism']
+test_words = ['abortion', 'gay', 'donation', 'charity', 'war', 'genocide', 'feminism', 'slavery', 'racism', 'education',
+    'immigration', 'machine', 'computer', 'robot', 'automation', 'sexism', 'fat', 'skinny']
 # test_words = ['slavery', 'feminism', 'racism', 'abortion', 'automation', 'computer', 'diversity',
 #               'education', 'electric', 'engineer', 'environment', 'feminism', 'immigration',
 #               'information', 'machine', 'mechanic', 'nazism', 'phone', 'privacy', 'racism',
@@ -66,6 +67,7 @@ mfd_dict_binary = models.load_mfd_df_binary(emb_dict=emb_dict_all, reload=False)
 hsv = plt.get_cmap('nipy_spectral')
 reduced_mfd_dict = mfd_dict[mfd_dict[constant.YEAR] == mfd_year]
 reduced_mfd_dict_binary = mfd_dict_binary[mfd_dict_binary[constant.YEAR] == mfd_year]
+plt.figure(figsize=(10, 6))
 for c in all_models:
     if 'FINEGRAINED' in binary_fine_grained:
         c.fit_bootstrap(reduced_mfd_dict)
@@ -110,10 +112,11 @@ for c in all_models:
                 plt.plot(word_df[constant.YEAR].values, cat_prediction, label='Moral Polarity', linewidth=2.0)
                 plt.fill_between(word_df[constant.YEAR].values, cat_prediction_l, cat_prediction_u, alpha=0.2)
                 plt.legend()
-                plt.ylim(0.45,0.55)
-                plt.hlines(0.5, min(word_df[constant.YEAR].values), max(word_df[constant.YEAR].values), colors='grey')
-                plt.title('{} {}'.format(c.name, word))
-                plt.savefig(os.path.join(constant.TEMP_DATA_DIR,'images','binaryseparate',word+'.png'))
+                plt.ylim(0.485,0.515)
+                if word_df.shape[0] > 0:
+                    plt.hlines(0.5, min(word_df[constant.YEAR].values), max(word_df[constant.YEAR].values), colors='grey')
+                    plt.title('{} {}'.format(c.name, word))
+                    plt.savefig(os.path.join(constant.TEMP_DATA_DIR,'images','binaryseparate',word+'.png'))
                 plt.clf()
             else:
                 plt.plot(word_df[constant.YEAR].values, cat_prediction, label=word, linewidth=2.0, color=hsv(float(i)/(len(test_words)-1)))
