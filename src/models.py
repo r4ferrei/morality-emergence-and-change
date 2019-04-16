@@ -79,7 +79,7 @@ def load_mfd_df_neutral(emb_dict=None, reload=False, **kwargs):
         s_neg = {v:'1' for k,v in reshape(s['-'])}
         s_neutral = {}
         for n_word in s['0']:
-            if n_word in emb_dict[1800]:
+            if n_word in emb_dict[min(emb_dict.keys())]:
                 s_neutral[n_word] = '0'
             if len(s_neutral) == len(s_plus)+len(s_neg):
                 break

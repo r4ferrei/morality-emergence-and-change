@@ -22,7 +22,6 @@ code_book = {'F114': 'claiming government benefits', 'F114_01': 'Stealing proper
 'F141': 'fighting with the police', 'F142': 'failing to report damage you’ve done accidentally to a parked vehicle', 
 'F143': 'threatening workers who refuse to join a strike', 'F144': 'killing in self-defence', 'S003': 'Country', 'S020': constant.YEAR}
 mfd_dict, wvs_df, emb_dict_all = None, None, None
-EMBEDDING_STYLES = set(['NYT', 'NGRAM'])
 
 def synchronize(ref_arr, other_arr):
     not_nan = np.logical_not(np.isnan(ref_arr))
@@ -56,7 +55,9 @@ def load_wvs_df_predictions(embedding_style, mfd_dict=None, wvs_df=None, emb_dic
         al = []
         for year in wvs_df[constant.YEAR].unique():
             year = int(year)
-            if embedding_style == 'NYT':
+            if embedding_style == 'FICTION':
+                round_year = 5*round(year/5) 
+            elif embedding_style == 'NYT':
                 round_year = year
             else: # NGRAM
                 if int(year) < 1990:
@@ -142,16 +143,17 @@ def correlate_words(df, all_models):
                 'Spearman':'%.4f' % spearmanr(list(concept_df[model.name].values), list(concept_df[constant.SCORE].values))[0]})
     pd.DataFrame(al_df).to_csv(os.path.join(constant.DATA_DIR, 'world_values_concept.csv'), index=False)
 
-all_models = [models.CentroidModel(), models.KNNModel(k=16)]
+all_models = [models.CentroidModel()]
 load = True
-embedding_style = 'NGRAM'
+embedding_style = 'FICTION'
 
-assert embedding_style in EMBEDDING_STYLES
-if load == True:
-    if embedding_style == 'NYT':
-        emb_dict_all,_ = embeddings.load_all_nyt()
-    else: # NGRAM
-        emb_dict_all,_ = embeddings.load_all(dir='E:/sgns')
+if load:
+    if embedding_style == 'NGRAM':
+        emb_dict_all,_ = embeddings.load_all(dir=constant.SGNS_DIR, years=constant.ALL_YEARS)
+    elif embedding_style == 'FICTION':
+        emb_dict_all,_ = embeddings.load_all_fiction(dir='D:/WordEmbeddings/kim')
+    else:
+        emb_dict_all,_ = embeddings.load_all_nyt(dir=constant.SGNS_NYT_DIR)
     mfd_dict = models.load_mfd_df_binary(emb_dict_all, reload=True)
 wvs_df = load_wvs_df(reload=load)
 df = load_wvs_df_predictions(embedding_style, mfd_dict=mfd_dict, wvs_df=wvs_df, emb_dict_all=emb_dict_all, reload=load)
