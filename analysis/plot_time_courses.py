@@ -134,6 +134,8 @@ def set_plot(binary_fine_grained, btstrap, load, all_models, emb_dict_all, load_
             word_df = test_df[test_df[constant.WORD] == word]
             word_df = word_df.sort_values(by=[constant.YEAR])
             years = word_df[constant.YEAR].values
+            if word_df[constant.CONCEPT].values.tolist()[0] != word and 'FINEGRAINED' == binary_fine_grained:
+                continue
             mean_line, lower_bound, upper_bound = models.models_predictions(model_list, word_df, btstrap)
             if plot_extra is not None:
                 plot_extra(word, model_list)

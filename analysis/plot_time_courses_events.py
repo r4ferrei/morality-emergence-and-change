@@ -144,8 +144,8 @@ def load_test_df_topics(emb_dict_all=None, reload=False):
 # Params
 binary_fine_grained = ['BINARY', 'FINEGRAINED', 'NULL'][1]
 btstrap = True
-load = False
-nyt_corpus = ['NYT', 'NGRAM', 'FICTION'][1]
+load = True
+nyt_corpus = ['NYT', 'NGRAM', 'FICTION'][0]
 all_models = [lambda: CentroidModel()]
 emb_dict_all = None
 if load:
