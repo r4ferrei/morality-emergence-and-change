@@ -102,6 +102,21 @@ def load_mfd_df_neutral(emb_dict=None, reload=False, **kwargs):
 def log_odds(pos_prob, neg_prob):
     return math.log(pos_prob/neg_prob)
 
+def models_predictions(model_list, word_df, bt_strap):
+    mean_line_agg, lower_bound_agg, upper_bound_agg = [], [], []
+    X =  word_df[constant.VECTOR].values
+    years = word_df[constant.YEAR].values.tolist()
+    for i,year in enumerate(years):
+        c = model_list[year]
+        if bt_strap:
+            mean_line, lower_bound, upper_bound = c.predict_proba_bootstrap([X[i]])
+            lower_bound_agg.append(lower_bound[0])
+            upper_bound_agg.append(upper_bound[0])
+        else:
+            mean_line = c.predict_proba([X[i]])
+        mean_line_agg.append(mean_line[0])
+    return mean_line_agg, lower_bound_agg, upper_bound_agg
+
 class BaseModel():
     '''
     Base Model
@@ -213,7 +228,6 @@ class CentroidModel(BaseModel):
             probabilities = self.__calc_prob([distances[k] for k in cat_names])
             x_3 = dict(zip(cat_names, probabilities))
             result.append(x_3)
-        assert all(sum(x.values()) > 0.9 for x in result)
         return result
 
     def fit(self, df):

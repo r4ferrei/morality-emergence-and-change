@@ -4,6 +4,7 @@ import numpy as np
 import scipy.io as sio
 import pandas as pd
 from nltk.corpus import stopwords
+import constant
 
 def load(
         dir='data/hamilton-historical-embeddings/sgns/',
@@ -87,6 +88,15 @@ def load_all(
             vocab = vocab & this_vocab
 
     return res, list(vocab)
+
+def choose_emb_dict(switch):
+    if switch == 'NGRAM':
+        emb_dict_all,vocab_list = load_all(dir=constant.SGNS_DIR, years=constant.ALL_YEARS)
+    elif switch == 'FICTION':
+        emb_dict_all,vocab_list = load_all_fiction(dir='D:/WordEmbeddings/kim')
+    else:
+        emb_dict_all,vocab_list = load_all_nyt(dir=constant.SGNS_NYT_DIR)
+    return emb_dict_all,vocab_list
 
 def convert_words_to_embedding_matrix(words, embs):
     '''
