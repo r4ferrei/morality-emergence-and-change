@@ -122,7 +122,7 @@ def load_test_df(emb_dict_all=None, reload=False):
 def load_test_df_topics(emb_dict_all=None, reload=False):
     df = []
     if emb_dict_all is not None:
-        with open(os.path.join(constant.TEMP_DATA_DIR, 'moralwords.csv')) as f:
+        with open(os.path.join(constant.DATA_DIR, 'moralwords.csv')) as f:
             for i, line in enumerate(f):
                 line_arr = line.split(',')
                 head_word = line_arr[0]
@@ -142,7 +142,7 @@ def load_test_df_topics(emb_dict_all=None, reload=False):
 
 # value_df = get_values_df()
 # Params
-binary_fine_grained = ['BINARY', 'FINEGRAINED', 'NULL'][1]
+binary_fine_grained = ['BINARY', 'FINEGRAINED', 'NULL'][2]
 btstrap = True
 load = True
 nyt_corpus = ['NYT', 'NGRAM', 'FICTION'][0]
