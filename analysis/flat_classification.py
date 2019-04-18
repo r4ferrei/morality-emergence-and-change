@@ -1,5 +1,6 @@
 import argparse
 import os
+import pickle
 
 import pandas as pd
 
@@ -10,7 +11,7 @@ import categorization
 parser = argparse.ArgumentParser()
 parser.add_argument('--out', help='File for CSV output')
 parser.add_argument('--device', help="'cuda' or 'cpu'")
-parser.add_argument('--model', help="'exemplar', 'centroid', 'knn'",
+parser.add_argument('--model', help="'exemplar', 'centroid', 'knn', 'gnb'",
         default='exemplar')
 parser.add_argument('--seeds',
         help="'fixed' (through time) or 'varying' (as available in time)")
@@ -20,7 +21,11 @@ parser.add_argument('--remove-duplicates', action='store_true',
         help="Remove seed words that belong to more than one category.")
 parser.add_argument('--mfd-file', help="Name of MFD file in seeds dir.")
 parser.add_argument('--widths', help="File with pre-trained kernel widths.")
-#parser.add_argument('--k', help="k parameter for kNN classifier.")
+parser.add_argument('--corpus', help="one of 'ngrams', 'coha', 'nyt'")
+parser.add_argument('--year', type=int, help="Analysis in specific year")
+parser.add_argument('--intersect', action='store_true',
+        help="Use intersection vocabulary across n-grams, coha, nyt corpora.")
+parser.add_argument('--k', type=int, help="k parameter for kNN classifier.")
 args = parser.parse_args()
 
 out_filename = args.out
@@ -32,7 +37,7 @@ if args.device:
     categorization.DEVICE = args.device
 
 MODEL = args.model
-assert(MODEL in ['centroid', 'exemplar', 'knn'])
+assert(MODEL in ['centroid', 'exemplar', 'knn', 'gnb'])
 
 SEEDS = args.seeds
 assert(SEEDS in ['fixed', 'varying'])
@@ -45,8 +50,36 @@ assert(MFD_FILE)
 
 WIDTHS = args.widths
 
+K = args.k
+if MODEL == 'knn': assert(K)
+
+CORPUS = args.corpus
+assert(CORPUS in ['ngrams', 'coha', 'nyt'])
+
+YEAR = args.year
+INTERSECT = args.intersect
+
+def get_years(default):
+    return [YEAR] if YEAR else default
+
 print("Loading historical embeddings.")
-hist_embs, vocab = embeddings.load_all()
+if CORPUS == 'ngrams':
+    hist_embs, vocab = embeddings.load_all(
+            dir   = 'data/hamilton-historical-embeddings/sgns/',
+            years = get_years(list(range(1800, 1991, 10))))
+elif CORPUS == 'coha':
+    hist_embs, vocab = embeddings.load_all(
+            dir   = 'data/coha-historical-embeddings/sgns/',
+            years = get_years(list(range(1810, 2001, 10))))
+elif CORPUS == 'nyt':
+    hist_embs, vocab = embeddings.load_all_nyt(
+            dir   = 'data/nyt/',
+            years = get_years(list(range(1990, 2010))))
+
+if INTERSECT:
+    assert(YEAR == 1990) # only shared year
+    with open('local-data/1990-vocab-intersection.pkl', 'rb') as f:
+        vocab = pickle.load(f)
 
 print("Loading and filtering seed words.")
 seed_words = seeds.load(
@@ -85,6 +118,9 @@ def predictions_df(word_lists_per_class, embs, seeds_for_fda, kernel_width):
                 embs = (embs if seeds_for_fda else None))
     elif MODEL == 'knn':
         return categorization.knn_loo_classification(
+                emb_mats, word_lists_per_class, k=K)
+    elif MODEL == 'gnb':
+        return categorization.gaussian_nb_loo_classification(
                 emb_mats, word_lists_per_class)
     else:
         assert(False)

@@ -1,0 +1,25 @@
+\documentclass{article}
+
+\usepackage{booktabs}
+
+\begin{document}
+
+\begin{table}
+    \centering
+    \caption{Model comparison on n-grams, average accuracy over time.}
+
+    \begin{tabular}{lrrr}
+    \toprule
+        \bfseries model &  \bfseries categorization &  \bfseries polarity &  \bfseries null\_test \\
+    \midrule
+     centroid &  \bfseries    0.64 &               0.89 &                0.82 \\
+           nb &               0.59 &               0.90 &  \bfseries     0.83 \\
+        knn\_1 &              0.57 &               0.89 &                0.80 \\
+        knn\_5 &              0.62 &               0.91 &  \bfseries     0.83 \\
+       knn\_10 &              0.62 &  \bfseries    0.92 &  \bfseries     0.83 \\
+       knn\_15 &              0.61 &               0.91 &  \bfseries     0.83 \\
+    \bottomrule
+    \end{tabular}
+\end{table}
+
+\end{document}

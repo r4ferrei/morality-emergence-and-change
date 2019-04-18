@@ -1,6 +1,7 @@
 import random
 import numpy as np
 import torch
+import torch.distributions
 from torch import nn
 import torch.nn.functional as F
 import pandas as pd
@@ -84,6 +85,8 @@ class ExemplarModel(nn.Module):
         - [B, C] tensor of unnormalized class likelihoods.
     '''
 
+    # NOTE: width=.15 decent initialization for N-grams and COHA,
+    # width=2 decent for NYT (in terms of faster convergence).
     def __init__(self, metric='l2', width=.15):
         '''
         Args:
@@ -566,6 +569,58 @@ def knn_loo_classification(emb_mats, words_per_class, k=15):
         counter = collections.Counter([lab for _, lab in dists_labels])
 
         pred = counter.most_common(1)[0][0]
+        true_ = instance['class']
+        num_correct += (pred == true_)
+
+        results.append({
+            'instance'        : str(instance['probe_str']),
+            'true_class'      : int(true_),
+            'predicted_class' : int(pred),
+            })
+
+    print("acc: {}".format(num_correct / len(dataset)))
+
+    return pd.DataFrame(results)
+
+def gaussian_nb_loo_classification(emb_mats, words_per_class):
+    '''
+    Given embedding matrices for different categories, return leave-one-out
+    classification results of Gaussian Naive Bayes classifier
+    (independence assumption over embedding dimensions).
+
+    Args:
+        emb_mats: list of embedding matrices, one per class, each representing
+        a list of embedding rows.
+
+        words_per_class: list of strings per class, aligned with `emb_mats`.
+
+        k: number of neighbours to compare to.
+
+    Returns: DataFrame with columns 'instance', 'true_class', 'predicted_class'.
+    '''
+
+    dataset = build_loo_classification_dataset(emb_mats, words_per_class)
+    results = []
+
+    num_correct = 0
+
+    for instance in dataset:
+        best_label = None
+        best_log   = float('-inf')
+
+        for i, emb_mat in enumerate(instance['emb_mats']):
+            means = torch.mean(emb_mat, dim=0)
+            stds  = torch.std(emb_mat, dim=0)
+
+            probe = instance['probe']
+            logs  = -torch.log(stds) - (probe-means)**2/(2*(stds**2))
+            log_prob = torch.sum(logs)
+
+            if log_prob > best_log:
+                best_log   = log_prob
+                best_label = i
+
+        pred  = best_label
         true_ = instance['class']
         num_correct += (pred == true_)
 
