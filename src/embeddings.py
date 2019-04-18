@@ -4,6 +4,7 @@ import numpy as np
 import scipy.io as sio
 import pandas as pd
 from nltk.corpus import stopwords
+import constant
 
 def load(
         dir='data/hamilton-historical-embeddings/sgns/',
@@ -47,6 +48,20 @@ def load_all_nyt(
         dic[base_year+i] = embeddings
     return dic, list(word_hash_df['word'].values)
 
+def load_all_fiction(dir):
+    f = open(os.path.join(dir, 'word_vectors.txt'), "rb")
+    emb_dict_all = {}
+    all_words = set([])
+    for line in f:
+        line_arr = line.split()
+        word, year, vec = line_arr[0].decode("utf-8") , int(line_arr[1]), [float(x) for x in line_arr[2:]]
+        if year not in emb_dict_all:
+            emb_dict_all[year] = {}
+        all_words.add(word)
+        emb_dict_yr = emb_dict_all[year]
+        emb_dict_yr[word] = vec
+    return emb_dict_all, list(all_words)
+
 def load_all(
         dir='data/hamilton-historical-embeddings/sgns/',
         years=list(range(1800, 1991, 10))):
@@ -78,6 +93,15 @@ def load_all(
             vocab = vocab & this_vocab
 
     return res, list(vocab)
+
+def choose_emb_dict(switch):
+    if switch == 'NGRAM':
+        emb_dict_all,vocab_list = load_all(dir=constant.SGNS_DIR, years=constant.ALL_YEARS)
+    elif switch == 'FICTION':
+        emb_dict_all,vocab_list = load_all_fiction(dir='D:/WordEmbeddings/kim')
+    else:
+        emb_dict_all,vocab_list = load_all_nyt(dir=constant.SGNS_NYT_DIR)
+    return emb_dict_all,vocab_list
 
 def convert_words_to_embedding_matrix(words, embs):
     '''
