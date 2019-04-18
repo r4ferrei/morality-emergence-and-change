@@ -55,7 +55,7 @@ def plot_binary(mean_line, head_word, word_df, model_list, years, btstrap, binar
         cat, dir, color, ylabel, lbound, ubound = '+', 'binaryseparate', None, \
                                                   'Moral Sentiment Score', -6, 6
     else:
-        cat, dir, color, ylabel, lbound, ubound = '1', 'null', None, 'Moral Relevance Score', -0.3, 0.3
+        cat, dir, color, ylabel, lbound, ubound = '1', 'null', None, 'Moral Relevance Score', -0.5, 0.5
     cat_prediction, cat_prediction_l, cat_prediction_u \
         = [x[cat] for x in mean_line], \
           [x[cat] for x in lower_bound] if btstrap else None, \
@@ -116,6 +116,9 @@ def set_ylim(nyt_corpus, binary_fine_grained):
         if binary_fine_grained == 'BINARY':
             return -0.12,0.12
         return -6,6
+    elif nyt_corpus == 'FICTION':
+        if binary_fine_grained == 'BINARY' or binary_fine_grained == 'NULL':
+            return -0.4,0.4
     return None, None
 
 
@@ -149,7 +152,7 @@ def set_plot(binary_fine_grained, btstrap, load, all_models, emb_dict_all, load_
                 head_word = head_word_i
             if head_word == word and 'FINEGRAINED' == binary_fine_grained:
                 plot_category(word, mfd_dict, mean_line, years, ylim1, ylim2, lower_bound, upper_bound)
-            elif 'BINARY' == binary_fine_grained:
+            elif 'BINARY' == binary_fine_grained or 'NULL' == binary_fine_grained:
                 plot_binary(mean_line, head_word, word_df, model_list, years, btstrap, binary_fine_grained,ylim1,ylim2,
                             lower_bound, upper_bound)
 

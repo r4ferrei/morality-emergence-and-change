@@ -127,7 +127,6 @@ def load_test_df_topics(emb_dict_all=None, reload=False):
                 line_arr = line.split(',')
                 head_word = line_arr[0]
                 words = [str(x) for x in line_arr]
-                print(words)
                 for word in words:
                     for year in emb_dict_all:
                         emb_dict_yr = emb_dict_all[year]
@@ -143,14 +142,13 @@ def load_test_df_topics(emb_dict_all=None, reload=False):
 # value_df = get_values_df()
 # Params
 binary_fine_grained = ['BINARY', 'FINEGRAINED', 'NULL'][2]
-btstrap = True
-load = True
-nyt_corpus = ['NYT', 'NGRAM', 'FICTION'][0]
+btstrap = False
+load = False
+nyt_corpus = ['NYT', 'NGRAM', 'FICTION'][2]
 all_models = [lambda: CentroidModel()]
 emb_dict_all = None
 if load:
     emb_dict_all,_ = embeddings.choose_emb_dict(nyt_corpus)
 load_test_df = load_test_df_topics
 
-set_plot(binary_fine_grained, btstrap,
-             load, all_models, emb_dict_all, load_test_df, nyt_corpus, plot_extra=None)
+set_plot(binary_fine_grained, btstrap, load, all_models, emb_dict_all, load_test_df, nyt_corpus, plot_extra=None)
