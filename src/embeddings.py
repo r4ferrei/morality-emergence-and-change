@@ -29,17 +29,22 @@ def load(
         return dic
 
 def load_all_nyt(
-        dir='data/nyt'):
+        dir='data/nyt',
+        years=list(range(1990, 2010))):
     base_year = 1990
     word_hash_df = pd.read_csv(os.path.join(dir, 'wordlist.csv'))
     assert len(list(word_hash_df.iterrows())) == 20000
     dic = {}
     for i in range(20):
+        if (base_year+i) not in years:
+            continue
+
         embeddings = {}
         mat_contents = sio.loadmat(os.path.join(dir, 'embeddings%d.mat' % i))
         embd_arr = mat_contents['U_%d' % i]
         for index, row in word_hash_df.iterrows():
             embeddings[row['word']] = embd_arr[index]
+            assert(np.linalg.norm(embd_arr[index]) > 0)
         dic[base_year+i] = embeddings
     return dic, list(word_hash_df['word'].values)
 
