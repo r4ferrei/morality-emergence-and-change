@@ -107,7 +107,10 @@ def plot_extra_values(word, model_list):
     plt.plot(val_years, col_vals, label=word)
 
 def load_test_df(emb_dict_all=None, reload=False):
-    test_words = []
+    test_words = ['adoption', 'ageism', 'arson', 'autism', 'contraceptives', 'cancer',
+                  'cheating', 'crime', 'drugs', 'education', 'feminism', 'euthanasia',
+                  'gambling', 'gangs', 'health', 'immigration', 'marijuana', 'nuclear',
+                  'porn', 'stress', 'suicide', 'sexism', 'terrorism', 'slavery']
     if reload:
         test_df = []
         for year in emb_dict_all.keys():
@@ -142,13 +145,13 @@ def load_test_df_topics(emb_dict_all=None, reload=False):
 # value_df = get_values_df()
 # Params
 binary_fine_grained = ['BINARY', 'FINEGRAINED', 'NULL'][2]
-btstrap = False
+btstrap = True
 load = False
 nyt_corpus = ['NYT', 'NGRAM', 'FICTION'][2]
 all_models = [lambda: CentroidModel()]
 emb_dict_all = None
 if load:
     emb_dict_all,_ = embeddings.choose_emb_dict(nyt_corpus)
-load_test_df = load_test_df_topics
+load_test_df = load_test_df
 
 set_plot(binary_fine_grained, btstrap, load, all_models, emb_dict_all, load_test_df, nyt_corpus, plot_extra=None)

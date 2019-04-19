@@ -35,13 +35,14 @@ def set_model(model_lambda, btstrap, binary_fine_grained, mfd_dict, mfd_dict_bin
     all_models = {}
     mfd_dict.drop(columns=[constant.VECTOR]).to_csv('something.csv')
     for year in mfd_dict[constant.YEAR].unique():
+        max_year = max(mfd_dict[constant.YEAR].unique())
         c = model_lambda()
         if 'FINEGRAINED' == binary_fine_grained:
-            reduced_mfd_dict = mfd_dict[mfd_dict[constant.YEAR] == year]
+            reduced_mfd_dict = mfd_dict[mfd_dict[constant.YEAR] == max_year]
         elif 'BINARY' == binary_fine_grained:
-            reduced_mfd_dict = mfd_dict_binary[mfd_dict_binary[constant.YEAR] == year]
+            reduced_mfd_dict = mfd_dict_binary[mfd_dict_binary[constant.YEAR] == max_year]
         else:
-            reduced_mfd_dict = mfd_dict_null[mfd_dict_null[constant.YEAR] == year]
+            reduced_mfd_dict = mfd_dict_null[mfd_dict_null[constant.YEAR] == max_year]
         if btstrap:
             c.fit_bootstrap(reduced_mfd_dict)
         else:
@@ -52,10 +53,10 @@ def set_model(model_lambda, btstrap, binary_fine_grained, mfd_dict, mfd_dict_bin
 def plot_binary(mean_line, head_word, word_df, model_list, years, btstrap, binary_fine_grained, ylim1, ylim2,
                 lower_bound=None, upper_bound=None):
     if binary_fine_grained == 'BINARY':
-        cat, dir, color, ylabel, lbound, ubound = '+', 'binaryseparate', None, \
-                                                  'Moral Sentiment Score', -6, 6
+        cat, dir, color, ylabel, lbound_label, ubound_label = '+', 'binaryseparate', None, \
+                                                  'Moral Sentiment Score', 'Negative', 'Positive'
     else:
-        cat, dir, color, ylabel, lbound, ubound = '1', 'null', None, 'Moral Relevance Score', -0.5, 0.5
+        cat, dir, color, ylabel, lbound_label, ubound_label = '1', 'null', None, 'Moral Relevance Score', 'Irrelevant', 'Relevant'
     cat_prediction, cat_prediction_l, cat_prediction_u \
         = [x[cat] for x in mean_line], \
           [x[cat] for x in lower_bound] if btstrap else None, \
@@ -64,6 +65,8 @@ def plot_binary(mean_line, head_word, word_df, model_list, years, btstrap, binar
                                                          log_odds(cat_prediction_l) if btstrap else None,\
                                                          log_odds(cat_prediction_u) if btstrap else None
     plt.ylim(ylim1, ylim2)
+    plt.text(min(word_df[constant.YEAR].values), ylim2, ubound_label, horizontalalignment='center', bbox=dict(boxstyle='square', ec=(1., 0.5, 0.5), fc=(1., 0.8, 0.8)))
+    plt.text(min(word_df[constant.YEAR].values), ylim1, lbound_label, horizontalalignment='center', bbox=dict(boxstyle='square', ec=(1., 0.5, 0.5), fc=(1., 0.8, 0.8)))
     plt.title('{} Plot'.format(head_word))
     plt.ylabel(ylabel)
     plt.xlabel('Years')
@@ -76,7 +79,7 @@ def plot_binary(mean_line, head_word, word_df, model_list, years, btstrap, binar
             color, alpha, linewidth = None, 0.4, 2.0
         plt.plot(word_df[constant.YEAR].values,cat_prediction,color=color,linewidth=linewidth,label=word,alpha=alpha)
         if btstrap:
-            plt.fill_between(word_df[constant.YEAR].values, cat_prediction_l, cat_prediction_u, alpha=0.2)
+            plt.fill_between(word_df[constant.YEAR].values, cat_prediction_l, cat_prediction_u, alpha=0.2, color=color)
         plt.axhline(y=0, color='grey')
         plt.legend()
         plt.title('{} {}'.format(name, head_word))
@@ -110,11 +113,13 @@ def plot_category(word, mfd_dict, mean_line, years, ylim1, ylim2, lower_bound, u
 
 def set_ylim(nyt_corpus, binary_fine_grained):
     if nyt_corpus == 'NGRAM':
-        if binary_fine_grained == 'BINARY' or binary_fine_grained == 'NULL':
-            return -0.12,0.12
-    elif nyt_corpus == 'NYT':
         if binary_fine_grained == 'BINARY':
             return -0.12,0.12
+        elif binary_fine_grained == 'NULL':
+            return -0.08,0.08
+    elif nyt_corpus == 'NYT':
+        if binary_fine_grained == 'BINARY':
+            return -8,8
         return -6,6
     elif nyt_corpus == 'FICTION':
         if binary_fine_grained == 'BINARY' or binary_fine_grained == 'NULL':
@@ -137,7 +142,7 @@ def set_plot(binary_fine_grained, btstrap, load, all_models, emb_dict_all, load_
             word_df = test_df[test_df[constant.WORD] == word]
             word_df = word_df.sort_values(by=[constant.YEAR])
             years = word_df[constant.YEAR].values
-            if word_df[constant.CONCEPT].values.tolist()[0] != word and 'FINEGRAINED' == binary_fine_grained:
+            if constant.CONCEPT in word_df and word_df[constant.CONCEPT].values.tolist()[0] != word and 'FINEGRAINED' == binary_fine_grained:
                 continue
             mean_line, lower_bound, upper_bound = models.models_predictions(model_list, word_df, btstrap)
             if plot_extra is not None:

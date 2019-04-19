@@ -93,7 +93,7 @@ def choose_emb_dict(switch):
     if switch == 'NGRAM':
         emb_dict_all,vocab_list = load_all(dir=constant.SGNS_DIR, years=constant.ALL_YEARS)
     elif switch == 'FICTION':
-        emb_dict_all,vocab_list = load_all_fiction(dir='D:/WordEmbeddings/kim')
+        emb_dict_all,vocab_list = load_all_fiction(dir=constant.SGNS_FICTION_DIR)
     else:
         emb_dict_all,vocab_list = load_all_nyt(dir=constant.SGNS_NYT_DIR)
     return emb_dict_all,vocab_list

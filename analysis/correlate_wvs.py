@@ -36,12 +36,12 @@ def load_wvs_df(reload=False):
 
     '''
     if reload:
-        wvs_df = pd.read_sas(os.path.join('data', 'world_values_survey.sas7bdat'))[code_book.keys()]
+        wvs_df = pd.read_sas(os.path.join(constant.DATA_DIR, 'world_values_survey.sas7bdat'))[code_book.keys()]
         wvs_df = wvs_df.loc[wvs_df['S003'].isin([840])]
         wvs_df = wvs_df.drop(columns=['S003'])
         wvs_df = wvs_df.rename(columns=code_book)
-        pickle.dump(wvs_df, open(os.path.join('data', 'wvs_df.pkl'), 'wb'))
-    wvs_df = pickle.load(open(os.path.join('data', 'wvs_df.pkl'), 'rb'))
+        pickle.dump(wvs_df, open(os.path.join(constant.TEMP_DATA_DIR, 'wvs_df.pkl'), 'wb'))
+    wvs_df = pickle.load(open(os.path.join(constant.TEMP_DATA_DIR, 'wvs_df.pkl'), 'rb'))
     wvs_df = wvs_df.reindex()
     return wvs_df
 
@@ -143,24 +143,34 @@ def correlate_words(df, all_models):
                 'Spearman':'%.4f' % spearmanr(list(concept_df[model.name].values), list(concept_df[constant.SCORE].values))[0]})
     pd.DataFrame(al_df).to_csv(os.path.join(constant.DATA_DIR, 'world_values_concept.csv'), index=False)
 
+def consolidate(df):
+    df['round'] = df.apply(lambda row: math.ceil(row[constant.YEAR]/10)*10)
+    df.groupby([constant.CONCEPT, 'round']).agg(nanmean).reset_index()
+    
+    df[constant.YEAR] = df['round']
+    df = df.drop(columns=['round'])
+    return df
+
+def binary_preds(df, emb_dict_all):
+    for year in df[constant.YEAR]:
+
+
+
+
 all_models = [models.CentroidModel()]
 load = True
-embedding_style = 'FICTION'
-
+embedding_style = 'NGRAM'
 if load:
-    if embedding_style == 'NGRAM':
-        emb_dict_all,_ = embeddings.load_all(dir=constant.SGNS_DIR, years=constant.ALL_YEARS)
-    elif embedding_style == 'FICTION':
-        emb_dict_all,_ = embeddings.load_all_fiction(dir='D:/WordEmbeddings/kim')
-    else:
-        emb_dict_all,_ = embeddings.load_all_nyt(dir=constant.SGNS_NYT_DIR)
-    mfd_dict = models.load_mfd_df_binary(emb_dict_all, reload=True)
+    emb_dict_all,_ = embeddings.choose_emb_dict(embedding_style)
+mfd_dict = models.load_mfd_df_binary(emb_dict_all, reload=load)
 wvs_df = load_wvs_df(reload=load)
-df = load_wvs_df_predictions(embedding_style, mfd_dict=mfd_dict, wvs_df=wvs_df, emb_dict_all=emb_dict_all, reload=load)
+# df = load_wvs_df_predictions(embedding_style, mfd_dict=mfd_dict, wvs_df=wvs_df, emb_dict_all=emb_dict_all, reload=load)
+#
+# df = df.groupby([constant.CONCEPT, constant.YEAR]).agg(nanmean).reset_index()
+# df = df[df[constant.YEAR] != 2011]
 
-df = df.groupby([constant.CONCEPT, constant.YEAR]).agg(nanmean).reset_index()
-df = df[df[constant.YEAR] != 2011]
+print(wvs_df.head())
 
-draw_graph(df, all_models)
-correlate_words(df, all_models)
-make_consolidated_df(df)
+# draw_graph(df, all_models)
+# correlate_words(df, all_models)
+# make_consolidated_df(df)
