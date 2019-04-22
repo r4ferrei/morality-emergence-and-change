@@ -99,8 +99,16 @@ def choose_emb_dict(switch):
         emb_dict_all,vocab_list = load_all(dir=constant.SGNS_DIR, years=constant.ALL_YEARS)
     elif switch == 'FICTION':
         emb_dict_all,vocab_list = load_all_fiction(dir=constant.SGNS_FICTION_DIR)
-    else:
+    elif switch == 'NYT':
         emb_dict_all,vocab_list = load_all_nyt(dir=constant.SGNS_NYT_DIR)
+    elif switch == 'COHA':
+        emb_dict_all,vocab_list = load_all(dir=constant.SGNS_COHA_DIR, years=range(1810, 2001, 10))
+    elif switch == 'TEST':
+        emb_dict_all = pickle.load(open(os.path.join(constant.TEMP_DATA_DIR, 'temp_dict.pkl'), 'rb'))
+        vocab_list = pickle.load(open(os.path.join(constant.TEMP_DATA_DIR, 'write.pkl'), 'rb'))
+        return emb_dict_all, vocab_list
+    else:
+        raise NotImplementedError
     return emb_dict_all,vocab_list
 
 def convert_words_to_embedding_matrix(words, embs):
