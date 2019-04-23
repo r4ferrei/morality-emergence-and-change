@@ -1,4 +1,4 @@
-﻿concept,+,-,0,Country
+﻿concept,+,-,1,Country
 abortion,17,49,23,United States
 abortion,26,26,37,Canada
 abortion,27,25,28,Britain
@@ -14,9 +14,9 @@ homosexuality,36,17,43,Britain
 alcohol,32,16,46,United States
 alcohol,31,9,57,Canada
 alcohol,38,9,47,Britain
-extramarital affair,4,84,10,United States
-extramarital affair,4,76,17,Canada
-extramarital affair,4,76,15,Britain
+extramarital,4,84,10,United States
+extramarital,4,76,17,Canada
+extramarital,4,76,15,Britain
 gambling,25,24,47,United States
 gambling,19,23,55,Canada
 gambling,22,26,45,Britain

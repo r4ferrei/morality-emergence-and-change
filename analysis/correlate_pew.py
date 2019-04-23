@@ -11,6 +11,7 @@ def group_df(df, country):
     if country != 'ALL':
         new_df = df[df['Country'] == country]
     else:
+        new_df = df[df['Country'] != 'Canada']
         new_df = df.copy()
     assert not new_df.empty
     new_df = new_df.drop(columns=['Country'])
@@ -28,7 +29,7 @@ def make_preds(df, emb_dict_all, c, test_type):
         new_df['pew_data'] = df['+']/(df['-'] + df['+'])
         mfd_dict = models.load_mfd_df_binary(emb_dict_all, reload=True)
     elif test_type == 'null':
-        cls = '1'
+        cls = '0'
         new_df['pew_data'] = df['1']/(df['-'] + df['+'] + df['1'])
         mfd_dict = models.load_mfd_df_neutral(emb_dict_all, reload=True)
     else:
@@ -40,23 +41,33 @@ def make_preds(df, emb_dict_all, c, test_type):
     return new_df
 
 def make_correlations(df):
+    df = df.dropna()
     x1 = df['pew_data'].values.tolist()
     x2 = df['pred'].values.tolist()
     print('Pearson correlation: {}'.format(pearsonr(x1,x2)[0]))
     print('Spearman correlation: {}'.format(spearmanr(x1,x2)[0]))
 
-config = configparser.ConfigParser()
-config.read('correlate_pew.ini')
-embedding_style = config['DEFAULT']['embedding_style']
-country = config['DEFAULT']['country']
-all_models = eval(config['DEFAULT']['all_models'])
-test_type = config['DEFAULT']['test_type']
-emb_dict_all,_ = embeddings.choose_emb_dict(embedding_style)
-df = pd.read_csv(join(constant.DATA_DIR,'pewwords.csv'))
-grouped_df = group_df(df, country)
+# config = configparser.ConfigParser()
+# config.read('correlate_pew.ini')
+# embedding_style = config['DEFAULT']['embedding_style']
+# country = config['DEFAULT']['country']
+# test_type = config['DEFAULT']['test_type']
+# all_models = eval(config['DEFAULT']['all_models'])
 
-for c in all_models:
-    c = c()
-    pred_df = make_preds(grouped_df, emb_dict_all, c, test_type)
-    print(pred_df)
-    make_correlations(pred_df)
+all_models = [CentroidModel]
+for embedding_style in ['NGRAM', 'COHA']:
+    for test_type in ['binary', 'null']:
+        print('{} {}'.format(embedding_style, test_type))
+        if embedding_style == 'NGRAM':
+            country = 'ALL'
+        else:
+            country = 'United States'
+
+        emb_dict_all,_ = embeddings.choose_emb_dict(embedding_style)
+        df = pd.read_csv(join(constant.DATA_DIR,'pewwords.csv'))
+        grouped_df = group_df(df, country)
+        for c in all_models:
+            c = c()
+            pred_df = make_preds(grouped_df, emb_dict_all, c, test_type)
+            pred_df.to_csv('{}_{}.csv'.format(embedding_style, test_type))
+            make_correlations(pred_df)
