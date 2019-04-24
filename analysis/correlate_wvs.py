@@ -5,13 +5,21 @@ import embeddings
 import math
 import models
 import constant
-from scipy.stats import spearmanr
+from scipy.stats import spearmanr, ttest_ind
 from scipy.stats import pearsonr
 import numpy as np
 import matplotlib.pyplot as plt
 from numpy import nanmean
 from sklearn import preprocessing
+from scipy import stats
 
+topic_book = {
+    'homosexuality': ['gay', 'sexual', 'homosexual', 'marriage', 'sex'],
+    'prostitution': ['sex', 'prostitute', 'sexual', 'trafficking', 'victim'],
+    'abortion': ['pregnancy', 'woman', 'pregnant', 'birth', 'baby'],
+    'divorce': ['marriage', 'spouse', 'married', 'marry', 'court'],
+    'suicide': ['mental', 'death', 'depression', 'kill', 'die']
+}
 code_book = {'F114': 'claiming government benefits', 'F114_01': 'Stealing property', 'F114_02': 'Parents beating children', 
 'F114_03': 'Violence against other people', 'F115': 'avoiding a fare on public transport', 'F116': 'cheating on taxes', 
 'F117': 'someone accepting a bribe', 'F118': 'homosexuality', 'F119': 'prostitution', 'F120': 'abortion', 
@@ -36,12 +44,12 @@ def load_wvs_df(reload=False):
 
     '''
     if reload:
-        wvs_df = pd.read_sas(os.path.join('data', 'world_values_survey.sas7bdat'))[code_book.keys()]
-        wvs_df = wvs_df.loc[wvs_df['S003'].isin([840])]
+        wvs_df = pd.read_sas(os.path.join(constant.DATA_DIR, 'world_values_survey.sas7bdat'))[code_book.keys()]
+        wvs_df = wvs_df.loc[wvs_df['S003'].isin([840, 124, 826])]
         wvs_df = wvs_df.drop(columns=['S003'])
         wvs_df = wvs_df.rename(columns=code_book)
-        pickle.dump(wvs_df, open(os.path.join('data', 'wvs_df.pkl'), 'wb'))
-    wvs_df = pickle.load(open(os.path.join('data', 'wvs_df.pkl'), 'rb'))
+        pickle.dump(wvs_df, open(os.path.join(constant.TEMP_DATA_DIR, 'wvs_df.pkl'), 'wb'))
+    wvs_df = pickle.load(open(os.path.join(constant.TEMP_DATA_DIR, 'wvs_df.pkl'), 'rb'))
     wvs_df = wvs_df.reindex()
     return wvs_df
 
@@ -143,24 +151,96 @@ def correlate_words(df, all_models):
                 'Spearman':'%.4f' % spearmanr(list(concept_df[model.name].values), list(concept_df[constant.SCORE].values))[0]})
     pd.DataFrame(al_df).to_csv(os.path.join(constant.DATA_DIR, 'world_values_concept.csv'), index=False)
 
+def round_year(year):
+    return round(math.floor(year)/10)*10
+
+def get_closest_year(year, all_years):
+    return min(all_years, key=lambda x:abs(x-year))
+
+def ttest(l_mean, l_std, u_mean, u_std):
+    sed = math.sqrt(l_std**2 + u_std**2)
+    t = (l_mean - u_mean)/sed
+    return t
+
+def consolidate(df):
+    new_df = df.copy()
+    # new_df[constant.YEAR] = df.apply(lambda row: round_year(row[constant.YEAR]), axis=1)
+    new_df = new_df.replace([-5,-4,-3,-2,-1], float('NaN'))
+    new_df = new_df.groupby([constant.YEAR]).agg([np.nanmean, np.nanstd, lambda x: np.count_nonzero(~np.isnan(x))]).reset_index()
+    new_df = new_df.set_index(constant.YEAR)
+    new_df = new_df.transpose()
+    return new_df
+
+def get_change_df(df, lower_year, upper_year):
+    al_df = []
+    # new_df = df.drop(columns=[x for x in df.columns.values if x - 10 > upper_year or x + 10 < lower_year])
+    new_df = df.copy()
+    concepts = set([x[0] for x in new_df.index.values])
+    for concept in concepts:
+        available_years = [year for year in new_df.columns if not np.isnan(new_df[year][concept]['nanmean'])]
+        if len(available_years) < 2:
+            continue
+        l_year, u_year = get_closest_year(lower_year, available_years), get_closest_year(upper_year, available_years)
+        count = new_df[l_year][concept]['<lambda>']
+        df = count-1
+        #p-value after comparison with the t 
+        l_mean, l_std = new_df[l_year][concept]['nanmean'], new_df[l_year][concept]['nanstd']
+        u_mean, u_std = new_df[u_year][concept]['nanmean'], new_df[u_year][concept]['nanstd']
+        t_stat = ttest(l_mean, l_std, u_mean, u_std)
+        p_val = 2*(1-stats.t.cdf(t_stat,df=df))
+        al_df.append({constant.CONCEPT: concept, 'direction': -1 if l_mean > u_mean else 1, 't_stat': abs(t_stat),
+         'lower_year':l_year, 'upper_year':u_year, 'p_val': p_val})
+    al_df = pd.DataFrame(al_df)
+    return al_df
+
+def binary_preds(df, emb_dict_all, c, name):
+    dic = {}
+    df = df.copy()
+    for _,row in df.iterrows():
+        concept,lower_year,upper_year = row[constant.CONCEPT],row['lower_year'],row['upper_year']
+        if concept in topic_book:
+            query = ' '.join([concept]+topic_book[concept])
+        else:
+            query = concept
+        # lower_years = [x for x in emb_dict_all.keys() if round_year(x) == lower_year]
+        # upper_years = [x for x in emb_dict_all.keys() if round_year(x) == upper_year]
+        # lower_years_vecs = [embeddings.get_sent_embed(emb_dict_all[x], query) for x in lower_years]
+        # upper_years_vecs = [embeddings.get_sent_embed(emb_dict_all[x], query) for x in upper_years]
+        # lower_years_vecs = [x for x in lower_years_vecs if x is not None]
+        # upper_years_vecs = [x for x in upper_years_vecs if x is not None]
+        lower_year = get_closest_year(lower_year, emb_dict_all.keys())
+        upper_year = get_closest_year(upper_year, emb_dict_all.keys())
+        print(query)
+        l_vec = embeddings.get_sent_embed(emb_dict_all[lower_year], query)
+        u_vec = embeddings.get_sent_embed(emb_dict_all[upper_year], query)
+        if l_vec is None or u_vec is None:
+            continue
+        dic[concept] = {'l': l_vec, 'u': u_vec}
+    df = df.set_index(constant.CONCEPT)
+    df['prediction'] = 0
+    for concept in dic:
+        l_prediction = c.predict_proba([dic[concept]['l']])[0]['+']
+        u_prediction = c.predict_proba([dic[concept]['u']])[0]['+']
+        df.set_value(concept, 'lower_prediction', l_prediction)
+        df.set_value(concept, 'upper_prediction', u_prediction)
+        df.set_value(concept, 'prediction', -1 if l_prediction > u_prediction else 1)
+    df = df.sort_values(by='p_val')
+    df = df.reindex(['lower_year', 'upper_year', 'direction', 't_stat', 'p_val', 'prediction', 'lower_prediction', 'upper_prediction'], axis=1)
+    df = df.round(3)
+    df.to_csv(os.path.join(constant.TEMP_DATA_DIR, '{}.csv'.format(name)))
+    print(df)
+
 all_models = [models.CentroidModel()]
 load = True
-embedding_style = 'FICTION'
-
-if load:
-    if embedding_style == 'NGRAM':
-        emb_dict_all,_ = embeddings.load_all(dir=constant.SGNS_DIR, years=constant.ALL_YEARS)
-    elif embedding_style == 'FICTION':
-        emb_dict_all,_ = embeddings.load_all_fiction(dir='D:/WordEmbeddings/kim')
-    else:
-        emb_dict_all,_ = embeddings.load_all_nyt(dir=constant.SGNS_NYT_DIR)
-    mfd_dict = models.load_mfd_df_binary(emb_dict_all, reload=True)
-wvs_df = load_wvs_df(reload=load)
-df = load_wvs_df_predictions(embedding_style, mfd_dict=mfd_dict, wvs_df=wvs_df, emb_dict_all=emb_dict_all, reload=load)
-
-df = df.groupby([constant.CONCEPT, constant.YEAR]).agg(nanmean).reset_index()
-df = df[df[constant.YEAR] != 2011]
-
-draw_graph(df, all_models)
-correlate_words(df, all_models)
-make_consolidated_df(df)
+for embedding_style in ['NGRAM', 'FICTION', 'COHA']:
+    name = embedding_style.lower()
+    if load:
+        emb_dict_all,_ = embeddings.choose_emb_dict(embedding_style)
+    mfd_dict = models.load_mfd_df_binary(emb_dict_all, reload=load)
+    year_dict = mfd_dict[mfd_dict[constant.YEAR] == max(emb_dict_all.keys())]
+    for model in all_models:
+        wvs_df = load_wvs_df(reload=False)
+        cons_wvs_df = consolidate(wvs_df)
+        model.fit(year_dict)
+        cons_wvs_df = get_change_df(cons_wvs_df, min(emb_dict_all.keys()), max(emb_dict_all.keys()))
+        binary_preds(cons_wvs_df, emb_dict_all, model, name)

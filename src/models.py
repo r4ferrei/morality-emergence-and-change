@@ -106,14 +106,13 @@ def models_predictions(model_list, word_df, bt_strap):
     mean_line_agg, lower_bound_agg, upper_bound_agg = [], [], []
     X =  word_df[constant.VECTOR].values
     years = word_df[constant.YEAR].values.tolist()
+    if bt_strap:
+        c = model_list[years[0]]
+        mean_line, lower_bound, upper_bound = c.predict_proba_bootstrap(X)
+        return mean_line, lower_bound, upper_bound
     for i,year in enumerate(years):
         c = model_list[year]
-        if bt_strap:
-            mean_line, lower_bound, upper_bound = c.predict_proba_bootstrap([X[i]])
-            lower_bound_agg.append(lower_bound[0])
-            upper_bound_agg.append(upper_bound[0])
-        else:
-            mean_line = c.predict_proba([X[i]])
+        mean_line = c.predict_proba([X[i]])
         mean_line_agg.append(mean_line[0])
     return mean_line_agg, lower_bound_agg, upper_bound_agg
 
