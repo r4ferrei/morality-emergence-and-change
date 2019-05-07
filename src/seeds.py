@@ -184,6 +184,28 @@ def split_neutral_moral(seeds):
 
     return ('neutral', 'moral'), (neutral, moral)
 
+def split_pos_neg_neutral(seeds):
+    pos     = []
+    neg     = []
+    neutral = []
+
+    plus = '+'
+    minus = '-'
+
+    assert(plus in NON_NEUTRAL_POLARITY_NAMES)
+    assert(minus in NON_NEUTRAL_POLARITY_NAMES)
+
+    for cat in MFT_CATEGORY_NAMES:
+        for word in seeds[plus][cat]:
+            pos.append(word)
+        for word in seeds[minus][cat]:
+            neg.append(word)
+
+    for word in seeds[NEUTRAL_POLARITY_NAME]:
+        neutral.append(word)
+
+    return ('pos', 'neg', 'neutral'), (pos, neg, neutral)
+
 def split_10_categories(seeds):
     '''
     Given seeds from `load`, produces a list of 10 lists, each being a word
