@@ -8,7 +8,7 @@ dir = 'results-3'
 
 CORPUS = 'ngrams'
 
-models  = ['centroid', 'nb', 'knn_1', 'knn_5', 'knn_10', 'knn_15']
+models  = ['centroid', 'nb', 'knn_1', 'knn_5', 'knn_10', 'knn_15', 'kde']
 tests   = ['categorization', 'polarity', 'null_test']
 
 results = []
