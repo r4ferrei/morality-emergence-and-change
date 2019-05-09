@@ -4,20 +4,37 @@
 
 2. Related work
 
-NOTE: I'm still thinking about sections 3 and 4 and their order.
-It seems to make more sense to first introduce historical embeddings and
-seed words, and then explain the computational framework.
-So perhaps we need a separate section here, even if not specifically Data.
+Word embeddings show bias (Jurafsky) and stereotypes (PNAS): support for
+detecting attitudes in text.
 
-3. Computational framework
+IJCAI and other (ACL?) paper: applications to morality.
+DDR method.
 
-4. Data
+Diachronic studies (semantic change: Hamilton, Xu, Frermann, another?).
 
-    Two main sources of data: word embeddings 
+This work: large-scale diachronic analysis of moral sentiment change from text.
 
-    4.1. Corpora
+Add:
+    ACL papers.
+    Nature Hum Beh paper.
 
-    4.2. Seed words
+3. Materials
+
+    3.1. Language of morality
+    
+    MFT, MFD.
+
+    3.2. Historical corpora
+
+    Ngrams, COHA.
+
+    3.3. Diachronic word embeddings
+
+    Hamilton.
+
+4. Computational framework
+
+Models
 
 5. Results
 
