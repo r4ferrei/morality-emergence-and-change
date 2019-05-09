@@ -8,26 +8,18 @@ import embeddings
 
 plt.ion()
 
+matplotlib.rc('font', size=12)
+
 EMBEDDINGS_DIR = 'data/hamilton-historical-embeddings/sgns/'
 MFD_FILE       = 'mfd_v1.csv'
 
 YEARS          = [1800, 1900, 1990]
 
 WORDS          = [
-        'slavery',
-        'feminism',
-        'gay',
-        'gender',
         'war',
-        'abortion',
-        'homosexual',
-        'wage',
+        'slavery',
+        'gay',
         'democracy',
-        'propaganda',
-        'humiliation',
-        'individuality',
-        'pollution',
-        'religion',
         ]
 
 print("Loading historical embeddings.")
@@ -76,10 +68,10 @@ def get_fda(all_seed_embs, year):
     return fda
 
 print("Computing FDA transform.")
-#fda = get_fda(seeds_3_classes_embs, YEARS[-1])
-fdas = {}
-for year in YEARS:
-    fdas[year] = get_fda(seeds_3_classes_embs, year)
+fda = get_fda(seeds_3_classes_embs, YEARS[-1])
+#fdas = {}
+#for year in YEARS:
+#    fdas[year] = get_fda(seeds_3_classes_embs, year)
     #fdas[year] = get_fda(all_seed_embs, year)
 
 # Compute centroids for each decade.
@@ -106,7 +98,7 @@ transformed_queries   = {}
 
 print("Transforming data.")
 for year in YEARS:
-    fda = fdas[year]
+    #fda = fdas[year]
     transformed_centroids[year] = fda.transform(all_centroids[year])
     transformed_queries[year] = fda.transform(
             [embs[year][w] for w in query_words]
@@ -136,6 +128,12 @@ def classify(vec, centroids):
     dists = [np.linalg.norm(vec - c) for c in centroids]
     return np.argmin(dists)
 
+# for max prob class
+def classify_prob(vec, centroids):
+    dists = [np.linalg.norm(vec - c) for c in centroids]
+    dists = np.array(dists)
+    return np.exp(-np.min(dists)) / np.sum(np.exp(-dists))
+
 fig, axes = plt.subplots(1, len(YEARS), figsize=(20, 8))
 
 print("Plotting.")
@@ -143,12 +141,21 @@ for step, year in enumerate(YEARS):
     ax = axes[step]
 
     #plt.figure()
-    ax.set_title("%d" % year)
+    ax.set_title("%ds" % year)
+
+    # Annotate moral pos, neg, neutral.
+    ax.annotate("Neutral", xy=(.01, .95), xycoords='axes fraction',
+            weight='bold')
+    ax.annotate("Moral virtue", xy=(.01, .01), xycoords='axes fraction',
+            weight='bold')
+    ax.annotate("Moral vice", xy=(.8, .95), xycoords='axes fraction',
+            weight='bold')
 
     ax.set_xticks([], [])
     ax.set_yticks([], [])
 
-    for i, centroids in enumerate(transformed_centroids[year]):
+    # Only plot most recent seed words.
+    for i, centroids in enumerate(transformed_centroids[YEARS[-1]]):
         label = seed_labels[i]
         if label == 'neutral':
             color = 'grey'
@@ -160,17 +167,18 @@ for step, year in enumerate(YEARS):
             assert(False)
 
         ax.plot([centroids[0]], [centroids[1]],
-                marker='o',
+                marker='x',
                 linestyle='',
                 color=color)
 
         ell = make_confidence_ellipse(
                 x = centroids[0], y = centroids[1],
-                cov = transformed_covs[year][i],
+                # Only plot most recent seed words.
+                cov = transformed_covs[YEARS[-1]][i],
                 nstd = 1,
                 color = color,
                 alpha = .2)
-        ax.add_artist(ell)
+        #ax.add_artist(ell)
 
     #for i, label in enumerate(seed_labels):
     #    ax.annotate(
@@ -191,13 +199,15 @@ for step, year in enumerate(YEARS):
             color='black')
 
     for i, query in enumerate(query_words):
+        # Classify based on recent seed words.
         neutral_moral_class = classify(
-                embs[year][query], neutral_moral_centroids[year])
+                embs[year][query], neutral_moral_centroids[YEARS[-1]])
         if neutral_moral_class == 0:
             class_ = 'neutral'
         else:
+            # Classify based on recent seed words.
             moral_class = classify(
-                    embs[year][query], ten_classes_centroids[year])
+                    embs[year][query], ten_classes_centroids[YEARS[-1]])
             class_ = seeds_10_labels[moral_class]
 
         ax.annotate(
@@ -206,7 +216,7 @@ for step, year in enumerate(YEARS):
                     transformed_queries[year][i][0],
                     transformed_queries[year][i][1]
                     ),
-                xytext = (-30, 10),
+                xytext = (-50, 10),
                 textcoords = 'offset points'
                 )
 
@@ -215,7 +225,64 @@ for step, year in enumerate(YEARS):
         l = b-a
         return (a - l*r, b + l*r)
 
-    ax.set_xlim(*expandrange(ax.get_xlim(), .1))
-    ax.set_ylim(*expandrange(ax.get_ylim(), .1))
+    ax.set_xlim(*expandrange(ax.get_xlim(), .2))
+    ax.set_ylim(*expandrange(ax.get_ylim(), .2))
+
+    # Color regions according to decision boundary.
+    h = 0.002
+    x_min, x_max = ax.get_xlim()
+    y_min, y_max = ax.get_ylim()
+    xx, yy = np.meshgrid(
+            np.arange(x_min, x_max, h),
+            np.arange(y_min, y_max, h))
+
+    transformed_3_centroids = [
+            fda.transform(s) for s in seeds_3_classes_embs[YEARS[-1]]]
+
+    Z = [classify(v, transformed_3_centroids) for v in
+            np.c_[xx.ravel(), yy.ravel()]]
+    Z = np.array(Z).reshape(xx.shape)
+
+    Z2 = [classify_prob(v, transformed_3_centroids) for v in
+            np.c_[xx.ravel(), yy.ravel()]]
+    Z2 = np.array(Z2).reshape(xx.shape)
+
+    assert(len(Z.shape) == 2)
+    rgba = np.zeros(list(Z.shape) + [4])
+    for i in range(Z.shape[0]):
+        for j in range(Z.shape[1]):
+            green = np.array([21, 145, 0]) / 255
+            red   = np.array([232, 6, 6]) / 255
+            grey  = np.array([124, 124, 124]) / 255
+            cols = [green, red, grey]
+
+            col = cols[Z[i][j]]
+            high = .8
+            power = 1.7
+            alpha = np.interp([Z2[i][j]],
+                    [Z2.min(), Z2.max()],
+                    [0, high])
+            alpha = np.interp(alpha**power,
+                    [0, high**power],
+                    [0, high])
+
+            rgba[i][j] = np.concatenate([list(col), alpha])
+
+    cmap = matplotlib.colors.ListedColormap(['green', 'red', 'grey'])
+    #ax.contourf(xx, yy, Z, alpha=.3)
+    ax.imshow(
+            rgba,
+            #Z,
+            #interpolation='none',
+            #cmap=cmap, alpha=.3,
+            extent=(x_min, x_max, y_min,y_max), origin='lower')
+
+    #colours = ['green', 'red', 'grey']
+    #for j in range(3):
+    #    pts = fda.transform(seeds_3_classes_embs[YEARS[-1]][j])
+    #    ax.plot(pts[:,0], pts[:,1], color=colours[j], marker='o',
+    #            linestyle='')
+
+plt.tight_layout()
 
 plt.savefig('moral_map.pdf')
