@@ -91,3 +91,21 @@ Models
         (Do we have results for this section, or plan to include it for sure?)
 
 6. Discussion
+
+Presented methodology for inference of moral sentiment change from longitudinal
+text corpora. Integrates diachronic word embeddings and categorization model
+to infer change in three levels over time.
+
+Methodology correlates with human judgements from public surveys and
+reflects changes in words such as gay, slavery, and democracy.
+
+Showed potential for automated large-scale studies by investigating effect of
+linguistic and psychological variables on moral sentiment change across a
+large collection of concepts.
+
+Limitations: polysemy, investigate topics instead of single words, robustness
+of diachronic embeddings in finer time scales.
+
+Future: compare moral sentiment change in different parts of the
+English-speaking world (e.g., slavery), as well as across languages and cultures.
+Preemptive detection of moral sentiment change, e.g., from social media.
