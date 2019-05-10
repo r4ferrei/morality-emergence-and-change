@@ -16,7 +16,6 @@ MFD_FILE       = 'mfd_v1.csv'
 YEARS          = [1800, 1900, 1990]
 
 WORDS          = [
-        'war',
         'slavery',
         'gay',
         'democracy',
@@ -136,6 +135,9 @@ def classify_prob(vec, centroids):
 
 fig, axes = plt.subplots(1, len(YEARS), figsize=(20, 8))
 
+xlim = None
+ylim = None
+
 print("Plotting.")
 for step, year in enumerate(YEARS):
     ax = axes[step]
@@ -225,8 +227,12 @@ for step, year in enumerate(YEARS):
         l = b-a
         return (a - l*r, b + l*r)
 
-    ax.set_xlim(*expandrange(ax.get_xlim(), .2))
-    ax.set_ylim(*expandrange(ax.get_ylim(), .2))
+    if not xlim:
+        xlim = expandrange(ax.get_xlim(), .2)
+        ylim = expandrange(ax.get_ylim(), .2)
+
+    ax.set_xlim(*xlim)
+    ax.set_ylim(*ylim)
 
     # Color regions according to decision boundary.
     h = 0.002
