@@ -2,6 +2,8 @@
 
 1. Introduction
 
+
+
 2. Related work
 
 Word embeddings show bias (Jurafsky) and stereotypes (PNAS): support for
@@ -83,6 +85,11 @@ Models
         patterns.
 
         Describe top-k extraction in three levels from top 5000 nouns.
+
+        Show results.
+
+        Explain regression study of linguistic and psychological variables
+        on moral sentiment change of different concepts.
 
         Show results.
 
