@@ -1,0 +1,18 @@
+Moral sentiment is the attitude of praise or blame that people exhibit toward
+a concept or event. The inquiry of moral sentiment has traditionally been
+pursued in philosophy, with later extensions to social psychology, and more
+recent developments in natural language processing and computational social
+science. Despite this extensive line of research, formal approaches to moral
+sentiment change -- how people's moral sentiments shift over time -- are still
+in their infancy. We present a computational approach for investigating moral
+sentiment change via large-scale analysis of longitudinal text corpora. We
+construct moral environment over time by exploiting implicit moral biases
+learned from diachronic word embeddings, and demonstrate how a parameter-free
+categorization model supports inference of historical shifts in moral sentiment
+of the public toward concepts such as _slavery_ and _democracy_ on three levels:
+moral relevance, moral polarity, and fine-grained moral categories. We
+demonstrate the potential of this methodology for large-scale studies of moral
+sentiment change with an investigation of the effect of linguistic and
+psychological variables on historical shifts in moral sentiment. Our work
+provides opportunities for preemptive detection of moral sentiment change in
+society.

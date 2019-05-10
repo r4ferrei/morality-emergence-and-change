@@ -17,6 +17,8 @@ This work: large-scale diachronic analysis of moral sentiment change from text.
 Add:
     ACL papers.
     Nature Hum Beh paper.
+    "Simple dynamic word embeddings for mapping perceptions in the public
+    sphere" (arXiv)
 
 3. Materials
 
