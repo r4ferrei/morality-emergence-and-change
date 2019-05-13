@@ -74,7 +74,8 @@ def get_values_df():
     return(df.groupby(['Year']).mean())
 
 def get_ref_df():
-    headers = [constant.WORD, 'description', constant.YEAR, constant.CONCEPT] + ['w{}'.format(i) for i in range(10)]
+    headers = [constant.WORD, 'description', constant.YEAR, constant.CONCEPT]\
+              + ['w{}'.format(i) for i in range(10)]
     df = pd.read_csv(os.path.join(constant.TEMP_DATA_DIR, 'ciment_data.csv'), names=headers)
     return df
 
@@ -107,7 +108,7 @@ def plot_extra_values(word, model_list):
     plt.plot(val_years, col_vals, label=word)
 
 def load_test_df(emb_dict_all=None, reload=False):
-    test_words = ['homosexual', 'internet', 'automation', 'robot', 'biomedical', 'privacy', 'god',
+    test_words = ['homosexual', 'immigration', 'democracy', 'robot', 'biomedical', 'privacy', 'god',
     'religion', 'slavery', 'gender', 'gay']
     if reload:
         test_df = []
@@ -142,7 +143,7 @@ def load_test_df_topics(emb_dict_all=None, reload=False):
 
 # value_df = get_values_df()
 # Params
-binary_fine_grained = ['BINARY', 'FINEGRAINED', 'NULL'][2]
+binary_fine_grained = ['BINARY', 'FINEGRAINED', 'NULL'][0]
 btstrap = True
 load = False
 nyt_corpus = ['NYT', 'NGRAM', 'FICTION'][1]

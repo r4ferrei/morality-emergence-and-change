@@ -53,7 +53,7 @@ def set_model(model_lambda, btstrap, binary_fine_grained, mfd_dict, mfd_dict_bin
     return all_models
 
 
-def plot_binary(mean_line, head_word, word_df, model_list, btstrap, binary_fine_grained, ylim1, ylim2, xlim1, plot_extra,
+def plot_binary(word, mean_line, head_word, years, btstrap, binary_fine_grained, ylim1, ylim2, xlim1,
                 lower_bound=None, upper_bound=None):
     if binary_fine_grained == 'BINARY':
         cat, dir, color, ylabel, lbound_label, ubound_label = '+', 'binaryseparate', 'salmon', \
@@ -61,7 +61,6 @@ def plot_binary(mean_line, head_word, word_df, model_list, btstrap, binary_fine_
     else:
         cat, dir, color, ylabel, lbound_label, ubound_label = '1', 'null', 'dodgerblue', 'Moral relevance log odds ratio', \
                                                               'Irrelevant', 'Relevant'
-    years = word_df[constant.YEAR].values
     cat_prediction, cat_prediction_l, cat_prediction_u \
         = [x[cat] for x in mean_line], \
           [x[cat] for x in lower_bound] if btstrap else None, \
@@ -77,23 +76,49 @@ def plot_binary(mean_line, head_word, word_df, model_list, btstrap, binary_fine_
              bbox=dict(boxstyle='square', ec=(1., 0.5, 0.5), fc=(1., 0.8, 0.8)))
     plt.ylabel(ylabel)
     plt.xlabel('Time')
-    if not word_df.empty:
-        name = model_list[years[0]].name
-        word = word_df[constant.WORD].values.tolist()[0]
-        plt.title('{} - {}'.format(' '.join(ylabel.split()[:-1]), word))
-        if head_word == word:
-            color, alpha, linewidth = color, 1, 4.0
-        else:
-            color, alpha, linewidth = color, 0.4, 2.0
-        plt.plot(years,cat_prediction,color=color,linewidth=linewidth,label='Slope: {0:.3}, P Value: {1:.3}'.format(slope, p_val),alpha=alpha)
-        if btstrap:
-            plt.fill_between(years, cat_prediction_l, cat_prediction_u, alpha=0.2, color=color)
-        plt.axhline(y=0, color='grey')
-        plt.legend()
-        plt.savefig(os.path.join(constant.TEMP_DATA_DIR, 'images', dir, head_word + '.png'),bbox_inches='tight')
-        print(os.path.join(constant.TEMP_DATA_DIR, 'images', dir, head_word + '.png'))
+    plt.title('{} - {}'.format(' '.join(ylabel.split()[:-1]), word))
+    if head_word == word:
+        color, alpha, linewidth = color, 1, 4.0
     else:
-        plt.clf()
+        color, alpha, linewidth = color, 0.4, 2.0
+    plt.plot(years,cat_prediction,color=color,linewidth=linewidth,label='Slope: {0:.3}, P Value: {1:.3}'.format(slope, p_val),alpha=alpha)
+    if btstrap:
+        plt.fill_between(years, cat_prediction_l, cat_prediction_u, alpha=0.2, color=color)
+    plt.axhline(y=0, color='grey')
+    plt.legend()
+    plt.savefig(os.path.join(constant.TEMP_DATA_DIR, 'images', dir, head_word + '.png'),
+                bbox_inches='tight', format='png')
+    plt.savefig(os.path.join(constant.TEMP_DATA_DIR, 'images', dir, head_word + '.pdf'),
+                bbox_inches='tight',format='pdf')
+    plt.clf()
+    print(os.path.join(constant.TEMP_DATA_DIR, 'images', dir, head_word + '.pdf'))
+
+def plot_category_hinton(word, categories, preds, years, max_weight, min_weight):
+    """Draw Hinton diagram for visualizing a weight matrix."""
+    ax = plt.gca()
+    ax.set_aspect('equal', 'box')
+    ax.xaxis.set_major_locator(plt.NullLocator())
+    ax.yaxis.set_major_locator(plt.NullLocator())
+    for y, cat in enumerate(categories):
+        ax.text(-2, y, cat, horizontalalignment='right', verticalalignment='center')
+        for x,pred_dict in enumerate(preds):
+            pred = pred_dict[cat]
+            color = constant.get_colour(cat)
+            slope = 0.5/(max_weight-min_weight)
+            b = 0.5-(slope*max_weight)
+            size = pred*slope+b
+            if size == 0:
+                size = 0.01
+            if y == 0 and x%2 == 0:
+                ax.text(x - size / 2, -2, years[x], horizontalalignment='center')
+            circle = plt.Circle([x - size / 2, y - size / 2], size, facecolor=color, edgecolor=color)
+            ax.add_patch(circle)
+    ax.autoscale_view()
+    ax.set_xticklabels(categories)
+    plt.title(word)
+    plt.savefig(os.path.join(constant.TEMP_DATA_DIR, 'images', 'category', word + '.pdf'), format='pdf')
+    plt.savefig(os.path.join(constant.TEMP_DATA_DIR, 'images', 'category', word + '.png'), format='png')
+    plt.clf()
 
 def plot_category(f, word, mfd_dict, mean_line, years, lower_bound, upper_bound):
     min_year, max_year = min(mfd_dict[constant.YEAR].unique()), max(mfd_dict[constant.YEAR].unique())
@@ -107,21 +132,22 @@ def plot_category(f, word, mfd_dict, mean_line, years, lower_bound, upper_bound)
             = [x[cat] for x in mean_line], [x[cat] for x in lower_bound] if lower_bound is not None else None, \
               [x[cat] for x in upper_bound] if upper_bound is not None else None
         if '-' in cat:
-            ax2.plot(years, cat_prediction, label=cat[:-1], ls='--', color=color)
+            ax2.plot(years, cat_prediction, label=cat[:-1], ls=constant.get_linestyle(cat), color=color)
             ax = ax2
         else:
-            ax1.plot(years, cat_prediction, label=cat[:-1], color=color)
+            ax1.plot(years, cat_prediction, label=cat[:-1], ls=constant.get_linestyle(cat), color=color)
             ax = ax1
         if lower_bound is not None:
             ax.fill_between(years, cat_prediction_l, cat_prediction_u, color=color, alpha=0.2)
     ax1.legend(loc='upper right')
     plt.axhline(y=0, color='grey')
-    plt.savefig(os.path.join(constant.TEMP_DATA_DIR, 'images', 'category', word + '.png'))
+    plt.savefig(os.path.join(constant.TEMP_DATA_DIR, 'images', 'category', word + '.pdf'), format='pdf')
+    plt.savefig(os.path.join(constant.TEMP_DATA_DIR, 'images', 'category', word + '.png'), format='png')
     plt.clf()
 
 def plot_category_log_odds(word, mfd_dict, mean_line, years, lower_bound, upper_bound):
     min_year, max_year = min(mfd_dict[constant.YEAR].unique()), max(mfd_dict[constant.YEAR].unique())
-    five_cats = set([x[:-1] for x in mfd_dict[constant.CATEGORY].unique()])
+    five_cats = set([x for x in mfd_dict[constant.CATEGORY].unique()])
     for cat in five_cats:
         color = constant.get_colour(cat)
         cat_prediction_pos, cat_prediction_l_pos, cat_prediction_u_pos \
@@ -130,7 +156,7 @@ def plot_category_log_odds(word, mfd_dict, mean_line, years, lower_bound, upper_
         cat_prediction_neg, cat_prediction_l_neg, cat_prediction_u_neg \
             = [x[cat + '-'] for x in mean_line], [x[cat + '-'] for x in lower_bound] if lower_bound is not None else None, \
               [x[cat + '-'] for x in upper_bound] if upper_bound is not None else None
-        cat_prediction, cat_prediction_l, cat_prediction_u = log_odds(cat_prediction_pos, cat_prediction_neg), \
+        cat_prediction, cat_prediction_l, cat_prediction_u = cat_prediction, \
                                                              log_odds(cat_prediction_l_pos, cat_prediction_u_neg), \
                                                              log_odds(cat_prediction_u_pos, cat_prediction_u_neg)
         plt.plot(years, cat_prediction, label=cat, color=color)
@@ -140,35 +166,7 @@ def plot_category_log_odds(word, mfd_dict, mean_line, years, lower_bound, upper_
     plt.ylim(-0.1,0.1)
     plt.xlim(min_year, max_year)
     plt.axhline(y=0,color='grey')
-    plt.savefig(os.path.join(constant.TEMP_DATA_DIR, 'images', 'category', word + '.png'))
-    plt.clf()
-
-
-def plot_category_heat(word, mean_line, all_years, ylim1, ylim2):
-    all_categories = mean_line[0].keys()
-    pos_categories = sorted(x for x in all_categories if '+' in x)
-    neg_categories = sorted(x for x in all_categories if '-' in x)
-    for i,categories in enumerate([pos_categories, neg_categories]):
-        plt.subplot(2, 1, i + 1)
-        if i == 0:
-            plt.ylabel('Positive categories')
-            plt.title('Moral category probability - {}'.format(word))
-            polarity, cmap = 'positive', 'afmhot'
-        else:
-            plt.ylabel('Negative categories')
-            plt.xlabel('Time')
-            polarity, cmap = 'negative', 'bone'
-        m = []
-        for cat in categories:
-            cat_prediction = [x[cat] for x in mean_line]
-            m.append([0]*(len(all_years)-len(cat_prediction))+cat_prediction)
-        m = np.array(m)
-        plt.imshow(m, cmap=cmap, vmin=ylim1, vmax=ylim2)
-        plt.yticks(np.arange(len(categories)), categories)
-        year_ticks = np.arange(len(all_years), step=4)
-        plt.xticks(year_ticks, [all_years[i] for i in year_ticks])
-        plt.colorbar()
-    plt.savefig(os.path.join(constant.TEMP_DATA_DIR, 'images', 'category', word + '.png'))
+    plt.savefig(os.path.join(constant.TEMP_DATA_DIR, 'images', 'category', word + '.eps'), format='eps')
     plt.clf()
 
 def set_ylim(nyt_corpus, binary_fine_grained):
@@ -201,29 +199,28 @@ def set_plot(binary_fine_grained, btstrap, load, all_models, emb_dict_all, load_
     plt.rcParams.update({'font.size': 15})
     all_years = sorted(test_df[constant.YEAR].unique())
     for model_list in all_fitted_models:
-        head_word = None
+        results = {}
+        max_weight = -1
+        min_weight = 1
         for i,word in enumerate(test_df[constant.WORD].unique()):
-            word_df = test_df[test_df[constant.WORD] == word]
+            word_df = test_df[test_df[constant.WORD] == word].sort_values(by=[constant.YEAR])
             years = word_df[constant.YEAR].values
-            word_df = word_df.sort_values(by=[constant.YEAR])
-            if constant.CONCEPT in word_df and word_df[constant.CONCEPT].values.tolist()[0] != word and 'FINEGRAINED' == binary_fine_grained:
-                continue
             mean_line, lower_bound, upper_bound = models.models_predictions(model_list, word_df, btstrap)
-            if constant.CONCEPT not in test_df:
-                head_word = word
-                plt.clf()
-            if constant.CONCEPT in word_df:
-                head_word_i = word_df[constant.CONCEPT].values.tolist()[0]
-                if head_word is None or head_word_i != head_word:
-                    plt.clf()
-                head_word = head_word_i
-            if head_word == word and 'FINEGRAINED' == binary_fine_grained:
-                plot_category_log_odds(word, mfd_dict, mean_line, years, lower_bound, upper_bound)
-                # plot_category_heat(word, mean_line, all_years, ylim1, ylim2)
+            results[word] = [years, mean_line, lower_bound, upper_bound]
+            # max_weight = max(max_weight, max(max(x.values()) for x in mean_line))
+            # min_weight = min(min_weight, min(min(x.values()) for x in mean_line))
+        for word in results:
+            years, mean_line, lower_bound, upper_bound = results[word]
+            if 'FINEGRAINED' == binary_fine_grained:
+                max_weight = max(max(x.values()) for x in mean_line)
+                min_weight = min(min(x.values()) for x in mean_line)
+                categories = sorted(list(mean_line[0].keys()))
+                plot_category_hinton(word, categories, mean_line, years, max_weight, min_weight)
+                # plot_category(f, word, mfd_dict, mean_line, years, lower_bound, upper_bound)
             elif 'BINARY' == binary_fine_grained or 'NULL' == binary_fine_grained:
                 plt.xlim(min(all_years), max(all_years))
-                plot_binary(mean_line, head_word, word_df, model_list, btstrap, binary_fine_grained,ylim1,ylim2,min(all_years),
-                            plot_extra, lower_bound, upper_bound)
+                plot_binary(word, mean_line, word, years, btstrap, binary_fine_grained,ylim1,ylim2,min(all_years),
+                            lower_bound, upper_bound)
 
 
 # # Params

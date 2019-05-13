@@ -47,8 +47,9 @@ def make_correlations(df):
     df = df.dropna()
     x1 = df['orig_data'].values.tolist()
     x2 = df['pred'].values.tolist()
-    print('Pearson correlation: {}'.format(pearsonr(x1,x2)[0]))
-    print('Spearman correlation: {}'.format(spearmanr(x1,x2)[0]))
+    print(df)
+    print('Pearson correlation: {}, P-val: {}, n: {}'.format(pearsonr(x1,x2)[0], pearsonr(x1,x2)[1], len(x1)))
+    print('Spearman correlation: {}, P-val: {}, n: {}'.format(spearmanr(x1,x2)[0], pearsonr(x1,x2)[1], len(x1)))
 
 # config = configparser.ConfigParser()
 # config.read('correlate_pew.ini')
@@ -58,8 +59,8 @@ def make_correlations(df):
 # all_models = eval(config['DEFAULT']['all_models'])
 
 all_models = [CentroidModel]
-for embedding_style in ['NGRAM', 'COHA']:
-    for test_type in ['binary']:
+for embedding_style in ['NGRAM']:
+    for test_type in ['binary', 'null']:
         print('{} {}'.format(embedding_style, test_type))
         if embedding_style == 'NGRAM':
             country = 'ALL'
@@ -68,11 +69,12 @@ for embedding_style in ['NGRAM', 'COHA']:
 
         emb_dict_all,_ = embeddings.choose_emb_dict(embedding_style)
         df = pd.read_csv(join(constant.DATA_DIR,'valencewords.csv'))
-        grouped_df = df
-            # group_df(df, country)
-        grouped_df = grouped_df.set_index(constant.CONCEPT)
+        # grouped_df = df
+        # grouped_df = group_df(df, country)
+        if constant.CONCEPT in grouped_df.columns.values:
+            grouped_df = grouped_df.set_index(constant.CONCEPT)
         for c in all_models:
             c = c()
-            pred_df = make_preds(grouped_df, 'valence', emb_dict_all, c, test_type)
+            pred_df = make_preds(grouped_df, 'orig', emb_dict_all, c, test_type)
             pred_df.to_csv('{}_{}.csv'.format(embedding_style, test_type))
             make_correlations(pred_df)

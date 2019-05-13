@@ -16,21 +16,22 @@ from sklearn.mixture import GaussianMixture, BayesianGaussianMixture
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from scipy.stats import norm
 from sklearn.decomposition import PCA, LatentDirichletAllocation, TruncatedSVD
-from sklearn.svm import SVC, LinearSVC
-from sklearn.gaussian_process import GaussianProcessClassifier
-from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier, KernelDensity
-from sklearn.svm import SVC
-from sklearn.gaussian_process import GaussianProcessClassifier
-from sklearn.gaussian_process.kernels import RBF
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.naive_bayes import GaussianNB
-from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
-from sklearn.model_selection import GridSearchCV
-from sklearn.linear_model import LogisticRegression
 import itertools
 from collections import Counter
+from sklearn.metrics import mean_squared_error
+
+def choose_mfd_df(switch, emb_dict_all, reload):
+    if switch == 'BINARY':
+        mfd_dict = load_mfd_df_binary(emb_dict_all, reload)
+    elif switch == 'FINEGRAINED':
+        mfd_dict = load_mfd_df(emb_dict_all, reload)
+    elif switch == 'NULL':
+        mfd_dict = load_mfd_df_neutral(emb_dict_all, reload)
+    else:
+        raise NotImplementedError
+    return mfd_dict
 
 def load_mfd_df(emb_dict=None, reload=False, **kwargs):
     '''
@@ -143,18 +144,27 @@ class BaseModel():
             self.fit(resample_mfd_dict)
             all_predictions = self.predict_proba(word_vectors)
             cons_predictions.append(all_predictions)
-        lower_bound = []
-        upper_bound = []
-        for i,year in enumerate(word_vectors):
-            year_predictions = [x[i] for x in cons_predictions]
-            l_entry, u_entry = {}, {}
-            n = len(cons_predictions)
-            for cat in categories:
-                cat_predictions = sorted([x[cat] for x in year_predictions])
-                l_entry[cat] = cat_predictions[int(n*0.05)]
-                u_entry[cat] = cat_predictions[int(n*0.95)]
-            lower_bound.append(l_entry)
-            upper_bound.append(u_entry)
+        # lower_bound = []
+        # upper_bound = []
+        # for i,year in enumerate(word_vectors):
+        #     year_predictions = [x[i] for x in cons_predictions]
+        #     l_entry, u_entry = {}, {}
+        #     n = len(cons_predictions)
+        #     for cat in categories:
+        #         cat_predictions = sorted([x[cat] for x in year_predictions])
+        #         l_entry[cat] = cat_predictions[int(n*0.05)]
+        #         u_entry[cat] = cat_predictions[int(n*0.95)]
+        #     lower_bound.append(l_entry)
+        #     upper_bound.append(u_entry)
+
+        lower_bound, upper_bound = [{} for _ in mean_predictions], [{} for _ in mean_predictions]
+        for cat in categories:
+            y, yhat = [np.std([x[i][cat] for x in cons_predictions]) for i in range(len(word_vectors))], [x[cat] for x in mean_predictions]
+            # interval = 1.96*mean_squared_error(y, yhat)
+            interval = np.multiply(y, 1.96)
+            lower_bound_arr, upper_bound_arr = np.subtract(yhat, interval), np.add(yhat, interval)
+            for i,x in enumerate(lower_bound): x.update({cat: lower_bound_arr[i]})
+            for i,x in enumerate(upper_bound): x.update({cat: upper_bound_arr[i]})
         return mean_predictions, lower_bound, upper_bound
 
     def fit(self, df):
