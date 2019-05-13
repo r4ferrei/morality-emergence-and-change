@@ -8,7 +8,7 @@ import embeddings
 
 plt.ion()
 
-matplotlib.rc('font', size=12)
+matplotlib.rc('font', size=16)
 
 EMBEDDINGS_DIR = 'data/hamilton-historical-embeddings/sgns/'
 MFD_FILE       = 'mfd_v1.csv'
@@ -146,11 +146,11 @@ for step, year in enumerate(YEARS):
     ax.set_title("%ds" % year)
 
     # Annotate moral pos, neg, neutral.
-    ax.annotate("Neutral", xy=(.01, .95), xycoords='axes fraction',
+    ax.annotate("Moral irrelevance", xy=(.01, .95), xycoords='axes fraction',
             weight='bold')
     ax.annotate("Moral virtue", xy=(.01, .01), xycoords='axes fraction',
             weight='bold')
-    ax.annotate("Moral vice", xy=(.8, .95), xycoords='axes fraction',
+    ax.annotate("Moral vice", xy=(.75, .95), xycoords='axes fraction',
             weight='bold')
 
     ax.set_xticks([], [])
@@ -228,8 +228,11 @@ for step, year in enumerate(YEARS):
         return (a - l*r, b + l*r)
 
     if not xlim:
-        xlim = expandrange(ax.get_xlim(), .2)
-        ylim = expandrange(ax.get_ylim(), .2)
+        xlim = (-0.11, 0.4)
+        ylim = (-0.28, 0.17)
+
+        #xlim = expandrange(ax.get_xlim(), .4)
+        #ylim = expandrange(ax.get_ylim(), .4)
 
     ax.set_xlim(*xlim)
     ax.set_ylim(*ylim)
