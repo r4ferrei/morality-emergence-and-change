@@ -147,7 +147,7 @@ print(shuffle_result)
 
 fig, ax = plt.subplots()
 
-sns.barplot(data=shuffle_result.drop(columns=['Intercept']), ci='sd',
+sns.barplot(data=shuffled_coefs.drop(columns=['Intercept']), ci="sd",
         orient='v', ax=ax, zorder=0, capsize=.15)
 sns.scatterplot(data=params.drop(labels=['Intercept']), zorder=10,
         color='black', s=50)
