@@ -15,6 +15,8 @@ SGNS_DIR = 'E:/sgns'
 DICTIONARY_PATH = os.path.join(DATA_DIR, 'dictionary.txt')
 MFD_DF = os.path.join(DATA_DIR, 'mfd_dic.pkl')
 
+MFD_DF_NEUTRAL = os.path.join(DATA_DIR, 'mfd_dic_neutral.pkl')
+
 CATEGORY = 'category'
 WORD = 'word'
 VECTOR = 'vector'
