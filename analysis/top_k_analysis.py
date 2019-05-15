@@ -10,6 +10,7 @@ import statsmodels.formula.api as smf
 import seaborn as sns
 import matplotlib.pyplot as plt
 import argparse
+import pingouin as pg
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--type", help="'binary' or 'null'")
@@ -33,14 +34,18 @@ freq_dir = os.environ.get('FREQ_DIR', constant.SGNS_DIR)
 if TYPE == 'binary':
     test_type = 'BINARY'
     RESPONSE = 'plus'
+
+    name = "{}_{}_retrievals.csv"
 elif TYPE == 'null':
     test_type = 'NULL'
     RESPONSE = 'one'
+
+    name = "{}_{}_retrievals_include_irrelevant.csv"
 else:
     assert(False)
 
 df = pd.read_csv(join(constant.TEMP_DATA_DIR,
-                      '{}_{}_retrievals.csv'.format('slope', test_type)))
+                      name.format('slope', test_type)))
 wordlist = df[constant.WORD].values
 f = open(join(freq_dir, 'freqs.pkl'), 'rb')
 freq_dict = pickle.load(f, encoding='latin1')
@@ -61,7 +66,7 @@ for word in wordlist:
     concretelist.append(concrete)
     lengthlist.append(length)
 
-df['valence'] = valencelist
+#df['valence'] = valencelist
 df['concrete'] = concretelist
 df['frequency'] = freqlist
 df['logfrequency'] = np.log(freqlist)
@@ -84,8 +89,10 @@ df = df.dropna()
 #print(results.summary())
 #import sys; sys.exit(0)
 
+response = 'abs' if ABS_SLOPE else RESPONSE
+
 formula = "{} ~ {} + length + concrete".format(
-        'abs' if ABS_SLOPE else RESPONSE,
+        response,
         'logfrequency' if LOG_FREQ else 'frequency')
 
 cf = smf.ols(formula=formula, data=df)
@@ -95,6 +102,21 @@ params = results.params
 print(results.summary())
 
 
+# Partial correlation analysis.
+
+print("Partial correlations of significant factors and response:")
+
+factor_ps = results.pvalues.drop(labels=['Intercept'])
+signif_fac = factor_ps[factor_ps < .05].keys()
+
+for i in range(len(signif_fac)):
+    x = signif_fac[i]
+    covar = signif_fac.drop(labels=[x]).tolist()
+    y = response
+
+    pcor_res = pg.partial_corr(data=df, x=x, y=y, covar=covar)
+    print(pcor_res)
+
 # Shuffle analysis.
 
 
@@ -102,7 +124,6 @@ shuffled = pd.read_csv(join(constant.TEMP_DATA_DIR,
                       '{}_{}_retrievals_shuffled.csv'.format('slope', test_type)))
 
 
-response = 'abs' if ABS_SLOPE else RESPONSE
 
 shuffled_coefs = []
 
@@ -116,7 +137,7 @@ for step in shuffled['step'].unique():
     curr = curr[['word', response]].merge(
             df[[
                 'word',
-                'valence',
+                #'valence',
                 'concrete',
                 'frequency',
                 'logfrequency',
