@@ -1,4 +1,6 @@
 import os
+import embeddings
+import models
 import pandas as pd
 import numpy as np
 import constant
@@ -25,7 +27,12 @@ LOG_FREQ = args.log
 plt.ion()
 sns.set_context('paper')
 
-RESTRICT_1800 = True
+
+embs, emb_vocab = embeddings.load_all()
+mfd_neutral = models.choose_mfd_df('NULL', embs, True)
+clf = models.CentroidModel()
+clf.fit(mfd_neutral)
+
 
 freq_dir = os.environ.get('FREQ_DIR', constant.SGNS_DIR)
 
@@ -34,11 +41,15 @@ freq_dir = os.environ.get('FREQ_DIR', constant.SGNS_DIR)
 if TYPE == 'binary':
     test_type = 'BINARY'
     RESPONSE = 'plus'
+    RESTRICT_MORAL_FLANKS = True
+    REQUIRE_MORAL_CHANGE = False
 
     name = "{}_{}_retrievals.csv"
 elif TYPE == 'null':
     test_type = 'NULL'
     RESPONSE = 'one'
+    RESTRICT_MORAL_FLANKS = False
+    REQUIRE_MORAL_CHANGE = True
 
     name = "{}_{}_retrievals_include_irrelevant.csv"
 else:
@@ -57,6 +68,36 @@ concretelist = []
 lengthlist = []
 
 for word in wordlist:
+    # Enforce that word embeddings exist throughout the period.
+    if word not in emb_vocab:
+        freqlist.append(None)
+        valencelist.append(None)
+        concretelist.append(None)
+        lengthlist.append(None)
+        continue
+
+    # Possibly enforce that word starts and ends in moral domain.
+    if RESTRICT_MORAL_FLANKS:
+        word_embs = [embs[1800][word], embs[1990][word]]
+        preds = clf.predict(word_embs)
+        if preds[0] != '1' or preds[1] != '1':
+            freqlist.append(None)
+            valencelist.append(None)
+            concretelist.append(None)
+            lengthlist.append(None)
+            continue
+
+    # Possibly enforce that word starts and ends different relevance sides.
+    if REQUIRE_MORAL_CHANGE:
+        word_embs = [embs[1800][word], embs[1990][word]]
+        preds = clf.predict(word_embs)
+        if preds[0] == preds[1]:
+            freqlist.append(None)
+            valencelist.append(None)
+            concretelist.append(None)
+            lengthlist.append(None)
+            continue
+
     frequency = sum(freq_dict[word].values()) if word in freq_dict else None
     concrete = conc_dict.loc[word,'Conc.M'] if word in conc_dict.index else None
     valence = valence_dict.loc[word,'v_rating'] if word in valence_dict.index else None
@@ -69,18 +110,18 @@ for word in wordlist:
 #df['valence'] = valencelist
 df['concrete'] = concretelist
 df['frequency'] = freqlist
-df['logfrequency'] = np.log(freqlist)
 df['length'] = lengthlist
 
 if ABS_SLOPE:
     df['abs'] = df[RESPONSE].abs()
     del df[RESPONSE]
 
-if RESTRICT_1800:
-    df = df[df['start_year'] == 1800]
+response = 'abs' if ABS_SLOPE else RESPONSE
 
-
+df = df[['word', 'concrete', 'frequency', 'length', response]]
 df = df.dropna()
+
+df['logfrequency'] = np.log(df['frequency'])
 
 #md = smf.mixedlm("{} ~ valence + concrete + logfrequency".format(RESPONSE),
 #        df,
@@ -88,8 +129,6 @@ df = df.dropna()
 #results = md.fit()
 #print(results.summary())
 #import sys; sys.exit(0)
-
-response = 'abs' if ABS_SLOPE else RESPONSE
 
 formula = "{} ~ {} + length + concrete".format(
         response,
@@ -114,7 +153,11 @@ for i in range(len(signif_fac)):
     covar = signif_fac.drop(labels=[x]).tolist()
     y = response
 
+    if not covar:
+        continue
+
     pcor_res = pg.partial_corr(data=df, x=x, y=y, covar=covar)
+    print("{} controlling for {}:".format(x, covar))
     print(pcor_res)
 
 # Shuffle analysis.
@@ -139,7 +182,7 @@ for step in shuffled['step'].unique():
                 'word',
                 #'valence',
                 'concrete',
-                'frequency',
+                #'frequency',
                 'logfrequency',
                 'length']],
             on='word')
@@ -190,5 +233,6 @@ else:
     assert(False)
 
 ax.set_title(title)
+plt.hlines(y=0, xmin=plt.xlim()[0], xmax=plt.xlim()[1])
 
 plt.savefig(figname)
