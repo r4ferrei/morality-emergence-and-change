@@ -244,13 +244,13 @@ for step, year in enumerate(YEARS):
                 'slavery'   : (-25, -10),
                 'gay'       : (-14, -10),
                 'democracy' : (-33, 5),
-                'crime'    : (-37, 3),
+                'crime'    : (-37, 5),
                 },
             1900: {
                 'slavery'   : (-30, 6),
                 'gay'       : (-10, 5),
                 'democracy' : (-15, -9),
-                'crime'    : (-42, -11),
+                'crime'    : (-42, -10),
                 },
             1990: {
                 'slavery'   : (-41, 7),
