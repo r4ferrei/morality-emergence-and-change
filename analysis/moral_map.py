@@ -20,7 +20,7 @@ WORDS          = [
         'slavery',
         'gay',
         'democracy',
-        'attack',
+        'crime',
         ]
 
 print("Loading historical embeddings.")
@@ -187,7 +187,7 @@ for step, year in enumerate(YEARS):
             assert(False)
 
         ax.scatter([centroids[0]], [centroids[1]],
-                marker='x',
+                marker='_',
                 s=7,
                 c='dimgrey')
 
@@ -227,7 +227,7 @@ for step, year in enumerate(YEARS):
                 'slavery'   : 'o',
                 'gay'       : '^',
                 'democracy' : 's',
-                'attack'    : '1',
+                'crime'    : 'x',
                 }
 
         ax.scatter(
@@ -242,21 +242,21 @@ for step, year in enumerate(YEARS):
         xytext = ({
             1800: {
                 'slavery'   : (-25, -10),
-                'gay'       : (-12, -10),
+                'gay'       : (-14, -10),
                 'democracy' : (-33, 5),
-                'attack'    : (1, 3),
+                'crime'    : (-37, 3),
                 },
             1900: {
                 'slavery'   : (-30, 6),
                 'gay'       : (-10, 5),
                 'democracy' : (-15, -9),
-                'attack'    : (-42, 5),
+                'crime'    : (-42, -11),
                 },
             1990: {
                 'slavery'   : (-41, 7),
                 'gay'       : (-10, 5),
                 'democracy' : (-10, -10),
-                'attack'    : (-59, 1),
+                'crime'    : (-58, 1),
                 }
             })
 
