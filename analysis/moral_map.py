@@ -169,7 +169,7 @@ for step, year in enumerate(YEARS):
     ax.annotate("\\textbf{Moral virtue}",
             xy=(.02, .03), xycoords='axes fraction')
     ax.annotate("\\textbf{Moral vice}",
-            xy=(.70, .93), xycoords='axes fraction')
+            xy=(.69, .93), xycoords='axes fraction')
 
     ax.set_xticks([], [])
     ax.set_yticks([], [])
