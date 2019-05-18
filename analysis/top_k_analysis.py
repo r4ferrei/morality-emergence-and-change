@@ -10,6 +10,7 @@ from statsmodels.regression.linear_model import OLS, add_constant
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 import seaborn as sns
+import matplotlib
 import matplotlib.pyplot as plt
 import argparse
 import pingouin as pg
@@ -23,10 +24,6 @@ args = parser.parse_args()
 TYPE = args.type
 ABS_SLOPE = args.abs
 LOG_FREQ = args.log
-
-plt.ion()
-sns.set_context('paper')
-
 
 embs, emb_vocab = embeddings.load_all()
 mfd_neutral = models.choose_mfd_df('NULL', embs, True)
@@ -209,12 +206,24 @@ print(shuffle_result)
 
 # Plot
 
-fig, ax = plt.subplots()
+plt.ion()
 
-sns.barplot(data=shuffled_coefs.drop(columns=['Intercept']), ci="sd",
+matplotlib.rc('font', size=5)
+matplotlib.rc('text', usetex=True)
+fig, ax = plt.subplots(figsize=(3.03, 2.5))
+
+shuffled_coefs_plot = shuffled_coefs.rename(columns={
+    'logfrequency' : 'Frequency',
+    'length'       : 'Length',
+    'concrete'     : 'Concreteness',
+    })
+
+sns.barplot(data=shuffled_coefs_plot.drop(columns=['Intercept']), ci="sd",
         orient='v', ax=ax, zorder=0, capsize=.15)
 sns.scatterplot(data=params.drop(labels=['Intercept']), zorder=10,
         color='black', s=50)
+
+ax.ticklabel_format(axis='y', style='sci', scilimits=(0,0))
 
 title = ""
 figname = ""
@@ -232,7 +241,11 @@ elif TYPE == 'null':
 else:
     assert(False)
 
-ax.set_title(title)
-plt.hlines(y=0, xmin=plt.xlim()[0], xmax=plt.xlim()[1])
+title = "" # for paper
 
-plt.savefig(figname)
+ax.set_title(title)
+ax.set_ylabel("Coefficient")
+plt.hlines(y=0, xmin=plt.xlim()[0], xmax=plt.xlim()[1], color='grey')
+plt.tight_layout()
+
+plt.savefig(figname, dpi=1000, bbox_inches='tight')
