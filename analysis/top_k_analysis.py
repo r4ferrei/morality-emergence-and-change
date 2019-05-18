@@ -208,7 +208,7 @@ print(shuffle_result)
 
 plt.ion()
 
-matplotlib.rc('font', size=5)
+sns.set_context("paper", rc={"font.size":10,"axes.titlesize":10,"axes.labelsize":10, 'text.usetex':True})
 matplotlib.rc('text', usetex=True)
 fig, ax = plt.subplots(figsize=(3.03, 2.5))
 
