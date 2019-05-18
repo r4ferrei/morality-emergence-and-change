@@ -169,7 +169,7 @@ for step, year in enumerate(YEARS):
     ax.annotate("\\textbf{Moral virtue}",
             xy=(.02, .03), xycoords='axes fraction')
     ax.annotate("\\textbf{Moral vice}",
-            xy=(.67, .93), xycoords='axes fraction')
+            xy=(.70, .93), xycoords='axes fraction')
 
     ax.set_xticks([], [])
     ax.set_yticks([], [])
@@ -211,13 +211,6 @@ for step, year in enumerate(YEARS):
     #            textcoords = 'offset points'
     #            )
 
-    ax.scatter(
-            transformed_queries[year][:,0],
-            transformed_queries[year][:,1],
-            marker='o',
-            s=12,
-            c='black')
-
     for i, query in enumerate(query_words):
         # Classify based on recent seed words.
         neutral_moral_class = classify(
@@ -229,6 +222,20 @@ for step, year in enumerate(YEARS):
             moral_class = classify(
                     embs[year][query], ten_classes_centroids[YEARS[-1]])
             class_ = seeds_10_labels[moral_class]
+
+        marker = {
+                'slavery'   : 'o',
+                'gay'       : '^',
+                'democracy' : 's',
+                'attack'    : '1',
+                }
+
+        ax.scatter(
+                transformed_queries[year][i,0],
+                transformed_queries[year][i,1],
+                marker=marker[query],
+                s=12,
+                c='black')
 
         class_ = format_class_name(class_)
 
@@ -336,6 +343,7 @@ for step, year in enumerate(YEARS):
     #    ax.plot(pts[:,0], pts[:,1], color=colours[j], marker='o',
     #            linestyle='')
 
-plt.tight_layout(.5)
+plt.tight_layout(0)
+plt.subplots_adjust(wspace=.05)
 
 plt.savefig('moral_map.pdf', dpi=1000, bbox_inches='tight')
