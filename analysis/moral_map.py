@@ -20,7 +20,7 @@ WORDS          = [
         'slavery',
         'gay',
         'democracy',
-        'crime',
+        #'crime',
         ]
 
 print("Loading historical embeddings.")
