@@ -11,6 +11,11 @@ CORPUS = 'ngrams'
 models  = ['centroid', 'nb', 'knn_1', 'knn_5', 'knn_10', 'knn_15', 'kde']
 tests   = ['categorization', 'polarity', 'null_test']
 
+tests_show = []
+for t in tests:
+    tests_show.append(t)
+    tests_show.append(t + ' (sd)')
+
 results = []
 
 for model in models:
@@ -30,8 +35,9 @@ for model in models:
             accs.append(acc)
 
         test_results[test] = np.array(accs).mean()
+        test_results[test + ' (sd)'] = np.array(accs).std()
 
     test_results['model']  = model
     results.append(test_results)
 
-df = pd.DataFrame(results)[['model'] + tests].round(2)
+df = pd.DataFrame(results)[['model'] + tests_show].round(2)
