@@ -8,6 +8,12 @@ import numpy as np
 from nltk.corpus import stopwords
 from scipy.stats import linregress, zscore
 
+#########################################
+# Whether to include morally irrelevant top-changing concepts, or filter
+# them out.
+INCLUDE_IRRELEVANT = True
+#########################################
+
 def get_beta(X, Y):
     X = np.array(X)
     Y = np.array(Y)
@@ -81,7 +87,11 @@ score_tests = [
     # (two_end_points,'end_points')
 ]
 
-emb_dict_all,vocab_list = embeddings.choose_emb_dict(nyt_corpus)
+if os.environ.get('LOAD_HAMILTON'):
+    emb_dict_all,vocab_list = embeddings.load_all()
+else:
+    emb_dict_all,vocab_list = embeddings.choose_emb_dict(nyt_corpus)
+
 most_recent_year = max(emb_dict_all.keys())
 emb_dict = emb_dict_all[most_recent_year]
 vocab = set(pd.read_csv(os.path.join(constant.TEMP_DATA_DIR, 'most_frequent.csv'))\
@@ -105,15 +115,26 @@ for c_lambda in all_model_lambdas:
             all_words = df[constant.WORD].values.tolist()
             df2 = score_words(c_lambda, [all_classes[1]], mfd_dict, emb_dict_all, all_words, score_function)
             df3 = score_words(c_lambda, ['1'], mfd_dict_null, emb_dict_all, all_words, mean_function)
-            df3 = df3[df3['1'] >= 0].drop(columns=['1'])
+            if INCLUDE_IRRELEVANT:
+                df3 = df3.drop(columns=['1'])
+            else:
+                df3 = df3[df3['1'] >= 0].drop(columns=['1'])
             df4 = score_words(c_lambda, mfd_dict_category[constant.CATEGORY].unique(),
                               mfd_dict_category, emb_dict_all, all_words, flank_function)\
                 .merge(df3,on=constant.WORD)
-            df4['start_cat'] = df4.agg(custom_argmax,1)
-            df4['end_cat'] = df4.agg(custom_argmax,1,-1)
+
+            if not INCLUDE_IRRELEVANT:
+                df4['start_cat'] = df4.agg(custom_argmax,1)
+                df4['end_cat'] = df4.agg(custom_argmax,1,-1)
+
             df = df\
                 .merge(df2, on=constant.WORD)\
                 .merge(df4, on=constant.WORD)\
                 .sort_values(by=all_classes[1], ascending=False)
+
+            if INCLUDE_IRRELEVANT:
+                name = '{}_{}_retrievals_include_irrelevant.csv'
+            else:
+                name = '{}_{}_retrievals.csv'
             df.to_csv(os.path.join(constant.TEMP_DATA_DIR,
-                                          '{}_{}_retrievals.csv'.format(score_function_name, test_type)))
+                                          name.format(score_function_name, test_type)))

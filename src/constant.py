@@ -27,6 +27,8 @@ MFD_DF = os.path.join(TEMP_DATA_DIR, 'mfd_dic.pkl')
 MFD_DF_NEUTRAL = os.path.join(TEMP_DATA_DIR, 'mfd_dic_neutral.pkl')
 MFD_DF_BINARY = os.path.join(TEMP_DATA_DIR, 'mfd_dic_binary.pkl')
 
+MFD_DF_NEUTRAL = os.path.join(DATA_DIR, 'mfd_dic_neutral.pkl')
+
 CATEGORY = 'category'
 WORD = 'word'
 VECTOR = 'vector'
