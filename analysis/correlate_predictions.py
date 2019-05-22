@@ -136,7 +136,7 @@ def make_correlations(pred_df):
 def run():
     all_models = [CentroidModel]
     embedding_style = 'NGRAM'
-    emb_dict_all, _ = embeddings.load_all(constant.SGNS_DIR)
+    emb_dict_all, _ = embeddings.load_all(embedpath)
     all_test_types = ['binary', 'null'] if filetype == 'pew' else ['binary']
     for test_type in all_test_types:
         print('{} {}'.format(embedding_style, test_type))
@@ -160,10 +160,12 @@ def run():
 parser = argparse.ArgumentParser()
 parser.add_argument('--filepath', help="Path to social data csv")
 parser.add_argument('--datatype', help="Must be pew or valence")
+parser.add_argument('--embedpath', help="Path to embeddings directory")
 args = parser.parse_args()
 
 filepath = args.filepath
 filetype = args.datatype
+embedpath = args.embedpath
 assert filepath
 assert filetype
 
