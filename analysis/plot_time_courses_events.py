@@ -1,13 +1,13 @@
 import sys
-sys.path.append('C:/Users/Jing/Documents/GitHub/morality-emergence-and-change/src')
+# sys.path.append('C:/Users/Jing/Documents/GitHub/morality-emergence-and-change/analysis')
 import constant
 import pickle
 import pandas as pd
 import os
 import embeddings
 import matplotlib.pyplot as plt
-from plot_time_courses import set_plot
 from models import CentroidModel
+from plot_time_courses import set_all_plot
 
 def get_scale(l):
     return dict(zip(l, list(range(len(l)))))
@@ -108,8 +108,7 @@ def plot_extra_values(word, model_list):
     plt.plot(val_years, col_vals, label=word)
 
 def load_test_df(emb_dict_all=None, reload=False):
-    test_words = ['homosexual', 'immigration', 'democracy', 'robot', 'biomedical', 'privacy', 'god',
-    'religion', 'slavery', 'gender', 'gay']
+    test_words = ['democracy', 'gay', 'slavery']
     if reload:
         test_df = []
         for year in emb_dict_all.keys():
@@ -143,7 +142,7 @@ def load_test_df_topics(emb_dict_all=None, reload=False):
 
 # value_df = get_values_df()
 # Params
-binary_fine_grained = ['BINARY', 'FINEGRAINED', 'NULL'][0]
+binary_fine_grained = ['BINARY', 'FINEGRAINED', 'NULL', 'ALL'][3]
 btstrap = True
 load = False
 nyt_corpus = ['NYT', 'NGRAM', 'FICTION'][1]
@@ -153,4 +152,5 @@ if load:
     emb_dict_all,_ = embeddings.choose_emb_dict(nyt_corpus)
 load_test_df = load_test_df
 
-set_plot(binary_fine_grained, btstrap, load, all_models, emb_dict_all, load_test_df, nyt_corpus, plot_extra=None)
+set_all_plot(btstrap, load, all_models, emb_dict_all, load_test_df, nyt_corpus, plot_extra=None)
+# set_plot(binary_fine_grained, btstrap, load, all_models, emb_dict_all, load_test_df, nyt_corpus, plot_extra=None)
