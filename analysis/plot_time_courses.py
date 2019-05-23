@@ -115,7 +115,6 @@ def plot_category_hinton(categories, preds, years_locs, max_weight, min_weight):
     for x in years_locs:
         ax.text(x - 1 / 2, -2, constant.ALL_YEARS[x], horizontalalignment='center')
     for y, cat in enumerate(categories):
-        print(categories)
         ax.text(-2, y, d[cat[:-1]] + cat[-1] if '-' in cat else cat, horizontalalignment='right',
                 verticalalignment='center')
         for x, pred_dict in enumerate(preds):

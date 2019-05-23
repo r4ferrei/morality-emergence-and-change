@@ -13,15 +13,15 @@ def choose_mfd_df(switch, emb_dict_all):
     """
     Loader function to acquire the moral foundations dictionary dataframe
 
-    :param switch: One of BINARY, FINEGRAINED, or NULL
+    :param switch: One of POLARITY, FINE-GRAINED, or RELEVANCE
     :param emb_dict_all: embedding dictionary
     :return: Pandas dataframe with data of moral foundations dictionary
     """
-    if switch == 'BINARY':
+    if switch == 'POLARITY':
         mfd_dict = load_mfd_df_binary(emb_dict_all)
-    elif switch == 'FINEGRAINED':
+    elif switch == 'FINE-GRAINED':
         mfd_dict = load_mfd_df(emb_dict_all)
-    elif switch == 'NULL':
+    elif switch == 'RELEVANCE':
         mfd_dict = load_mfd_df_neutral(emb_dict_all)
     else:
         raise NotImplementedError

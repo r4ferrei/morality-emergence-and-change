@@ -50,7 +50,7 @@ def make_preds(df, df_type, emb_dict_all, pred_model, test_type):
     emb_dict = emb_dict_all[max(emb_dict_all.keys())]
     concepts = [str(x) for x in new_df.index.values]
     vectors = [embeddings.get_sent_embed(emb_dict, x) for x in concepts]
-    if test_type == 'binary':
+    if test_type == 'polarity':
         cls, cls_counter = '+', '-'
         if df_type == 'valence':
             new_df['orig_data'] = df['v_rating']
@@ -137,7 +137,7 @@ def run():
     all_models = [CentroidModel]
     embedding_style = 'NGRAM'
     emb_dict_all, _ = embeddings.load_all(embedpath)
-    all_test_types = ['binary', 'null'] if filetype == 'pew' else ['binary']
+    all_test_types = ['polarity', 'null'] if filetype == 'pew' else ['polarity']
     for test_type in all_test_types:
         print('{} {}'.format(embedding_style, test_type))
         if embedding_style == 'NGRAM':
@@ -152,8 +152,8 @@ def run():
             c = c()
             pred_df = make_preds(grouped_df, filetype, emb_dict_all, c, test_type)
             if filetype == 'pew':
-                plot_correlations(pred_df, 'Moral Polarity' if test_type == 'binary' else 'Moral Relevance')
-            pred_df.to_csv('{}_{}.csv'.format(embedding_style, test_type))
+                plot_correlations(pred_df, 'Moral Polarity' if test_type == 'polarity' else 'Moral Relevance')
+            pred_df.to_csv('{}_correlation_{}.csv'.format(filetype, test_type))
             make_correlations(pred_df)
 
 
@@ -161,6 +161,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--filepath', help="Path to social data csv")
 parser.add_argument('--datatype', help="Must be pew or valence")
 parser.add_argument('--embedpath', help="Path to embeddings directory")
+parser.add_argument('--outputpath', help="Path to output csv file")
 args = parser.parse_args()
 
 filepath = args.filepath
