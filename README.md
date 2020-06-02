@@ -4,10 +4,6 @@ various analyses on moral sentiment change
 over time as inferred from text. All analyses
 can be run from the command-line.
 
-## Setup
-The diachronic embeddings used can be found at [here](https://nlp.stanford.edu/projects/histwords/) (All English).
-Embeddings should be extracted and 
-
 ## Usage
 Type `--help` in order to display the usage guide for each script. The
 purpose of the different analysis files are as follows:
@@ -19,6 +15,17 @@ predictions. Produces a `csv` file.
 
 * `src/plot_time_courses.py` Create time course diagrams at each tier in the moral sentiment framework.
 
+| Arg          | Optional/Default | Usage                                                                   |
+|--------------|------------------|-------------------------------------------------------------------------|
+| `--data_dir`   | Not optional     | Path to local-data directory.                                           |
+| `--vars`       | Not optional     | List of words to plot courses for.                                      |
+| `--embeddings` | Not optional     | Path to diachronic embeddings directory.                                |
+| `--corpus`     | NGRAM            | Specify which corpus to use.                                            |
+| `--bootstrap`  | True             | Specify whether to paint bootstrap intervals in the illustrated figure. |
+
+```
+python src/plot_time_courses.py --data_dir path/to/local-data --vars slavery abortion --embeddings path/to/embeddings
+```
 
 * `src/top_k_retrievals.py` Fetch the top changing words (measured according to the slope of their moral 
 trajectories) at the polarity and relevance tiers.
