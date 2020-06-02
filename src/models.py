@@ -4,12 +4,13 @@ import seeds
 import constant
 import pickle
 import math
+from os.path import join
 from sklearn.neighbors import KNeighborsClassifier, KernelDensity
 from sklearn.naive_bayes import GaussianNB
 import itertools
 
 
-def choose_mfd_df(switch, emb_dict_all):
+def choose_mfd_df(switch, data_dir, emb_dict_all):
     """
     Loader function to acquire the moral foundations dictionary dataframe
 
@@ -18,17 +19,17 @@ def choose_mfd_df(switch, emb_dict_all):
     :return: Pandas dataframe with data of moral foundations dictionary
     """
     if switch == 'POLARITY':
-        mfd_dict = load_mfd_df_binary(emb_dict_all)
+        mfd_dict = load_mfd_df_binary(data_dir, emb_dict=emb_dict_all)
     elif switch == 'FINE-GRAINED':
-        mfd_dict = load_mfd_df(emb_dict_all)
+        mfd_dict = load_mfd_df(data_dir, emb_dict=emb_dict_all)
     elif switch == 'RELEVANCE':
-        mfd_dict = load_mfd_df_neutral(emb_dict_all)
+        mfd_dict = load_mfd_df_neutral(data_dir, emb_dict=emb_dict_all)
     else:
         raise NotImplementedError
     return mfd_dict
 
 
-def load_mfd_df(emb_dict=None, **kwargs):
+def load_mfd_df(data_dir, mfd_df=constant.MFD_DF, emb_dict=None, **kwargs):
     """
     Categories are fine-grained
     Load the moral foundations dictionary and pull word representations for each seed word.
@@ -38,7 +39,8 @@ def load_mfd_df(emb_dict=None, **kwargs):
     :emb_dict: Embedding dictionary mapping words to vectors
     :return: Pandas dataframe with data of moral foundations dictionary
     """
-    s = seeds.load(constant.DATA_DIR, **kwargs)
+    mfd_df = join(data_dir, mfd_df)
+    s = seeds.load(data_dir, **kwargs)
     s_plus = {v: k + '+' for k, v in reshape(s['+'])}
     s_neg = {v: k + '-' for k, v in reshape(s['-'])}
     s_all = {**s_plus, **s_neg}
@@ -53,11 +55,11 @@ def load_mfd_df(emb_dict=None, **kwargs):
         if len(yr_items) == len(emb_dict.keys()):
             items += yr_items
     cat_df = pd.DataFrame(items)
-    pickle.dump(cat_df, open(constant.MFD_DF, 'wb'))
+    pickle.dump(cat_df, open(mfd_df, 'wb'))
     return cat_df
 
 
-def load_mfd_df_binary(emb_dict=None):
+def load_mfd_df_binary(data_dir, emb_dict=None):
     """
     Categories are positive and negative
     Load the moral foundations dictionary and pull word representations for each seed word.
@@ -67,13 +69,13 @@ def load_mfd_df_binary(emb_dict=None):
     :emb_dict: Embedding dictionary mapping words to vectors
     :return: Pandas dataframe with data of moral foundations dictionary
     """
-    mfd_dict = load_mfd_df(emb_dict)
+    mfd_dict = load_mfd_df(data_dir, constant.MFD_DF_BINARY, emb_dict)
     mfd_dict[constant.CATEGORY] = ['+' if '+' in x else '-'
                                    for x in mfd_dict[constant.CATEGORY].values]
     return mfd_dict
 
 
-def load_mfd_df_neutral(emb_dict=None, **kwargs):
+def load_mfd_df_neutral(data_dir, emb_dict=None, **kwargs):
     """
     Categories are positive and negative
     Load the moral foundations dictionary and pull word representations for each seed word.
@@ -83,7 +85,7 @@ def load_mfd_df_neutral(emb_dict=None, **kwargs):
     :emb_dict: Embedding dictionary mapping words to vectors
     :return: Pandas dataframe with data of moral foundations dictionary
     """
-    s = seeds.load(constant.DATA_DIR, **kwargs)
+    s = seeds.load(data_dir, **kwargs)
     s_plus = {v: '1' for k, v in reshape(s['+'])}
     s_neg = {v: '1' for k, v in reshape(s['-'])}
     s_neutral = {}

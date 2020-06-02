@@ -94,19 +94,15 @@ def load_all(
 
     return res, list(vocab)
 
-def choose_emb_dict(switch):
+def choose_emb_dict(switch, embeds_dir):
     if switch == 'NGRAM':
-        emb_dict_all,vocab_list = load_all(dir=constant.SGNS_DIR, years=constant.ALL_YEARS)
+        emb_dict_all,vocab_list = load_all(dir=embeds_dir, years=constant.ALL_YEARS)
     elif switch == 'FICTION':
-        emb_dict_all,vocab_list = load_all_fiction(dir=constant.SGNS_FICTION_DIR)
+        emb_dict_all,vocab_list = load_all_fiction(dir=embeds_dir)
     elif switch == 'NYT':
-        emb_dict_all,vocab_list = load_all_nyt(dir=constant.SGNS_NYT_DIR)
+        emb_dict_all,vocab_list = load_all_nyt(dir=embeds_dir)
     elif switch == 'COHA':
-        emb_dict_all,vocab_list = load_all(dir=constant.SGNS_COHA_DIR, years=range(1810, 2001, 10))
-    elif switch == 'TEST':
-        emb_dict_all = pickle.load(open(os.path.join(constant.TEMP_DATA_DIR, 'temp_dict.pkl'), 'rb'))
-        vocab_list = pickle.load(open(os.path.join(constant.TEMP_DATA_DIR, 'write.pkl'), 'rb'))
-        return emb_dict_all, vocab_list
+        emb_dict_all,vocab_list = load_all(dir=embeds_dir, years=range(1810, 2001, 10))
     else:
         raise NotImplementedError
     return emb_dict_all,vocab_list

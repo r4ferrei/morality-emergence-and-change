@@ -1,2 +1,0 @@
-pdflatex centroid_knn
-pdflatex centroid_knn
